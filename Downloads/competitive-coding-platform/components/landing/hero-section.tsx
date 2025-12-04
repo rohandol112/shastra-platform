@@ -1,9 +1,99 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
-import { ArrowRight, Play, Terminal, Sparkles } from "lucide-react"
+import { ArrowRight, Play, Sparkles } from "lucide-react"
 import { useEffect, useState } from "react"
+
+// Code templates for the moving strip
+const codeTemplates = [
+  {
+    name: "two_sum.py",
+    language: "Python",
+    code: `def two_sum(nums, target):
+    seen = {}
+    for i, num in enumerate(nums):
+        if target - num in seen:
+            return [seen[target-num], i]
+        seen[num] = i`,
+    status: "Accepted",
+    runtime: "4ms",
+  },
+  {
+    name: "binary_search.cpp",
+    language: "C++",
+    code: `int binarySearch(vector<int>& arr, int target) {
+    int left = 0, right = arr.size() - 1;
+    while (left <= right) {
+        int mid = left + (right - left) / 2;
+        if (arr[mid] == target) return mid;
+        arr[mid] < target ? left = mid + 1 : right = mid - 1;
+    }
+    return -1;
+}`,
+    status: "Accepted",
+    runtime: "2ms",
+  },
+  {
+    name: "merge_sort.java",
+    language: "Java",
+    code: `void mergeSort(int[] arr, int l, int r) {
+    if (l < r) {
+        int m = l + (r - l) / 2;
+        mergeSort(arr, l, m);
+        mergeSort(arr, m + 1, r);
+        merge(arr, l, m, r);
+    }
+}`,
+    status: "Accepted",
+    runtime: "8ms",
+  },
+  {
+    name: "dfs.js",
+    language: "JavaScript",
+    code: `function dfs(graph, node, visited = new Set()) {
+    if (visited.has(node)) return;
+    visited.add(node);
+    console.log(node);
+    for (const neighbor of graph[node]) {
+        dfs(graph, neighbor, visited);
+    }
+}`,
+    status: "Accepted",
+    runtime: "5ms",
+  },
+  {
+    name: "dp_fibonacci.rs",
+    language: "Rust",
+    code: `fn fibonacci(n: usize) -> u64 {
+    let mut dp = vec![0u64; n + 1];
+    dp[1] = 1;
+    for i in 2..=n {
+        dp[i] = dp[i-1] + dp[i-2];
+    }
+    dp[n]
+}`,
+    status: "Accepted",
+    runtime: "1ms",
+  },
+  {
+    name: "quick_sort.go",
+    language: "Go",
+    code: `func quickSort(arr []int, low, high int) {
+    if low < high {
+        pi := partition(arr, low, high)
+        quickSort(arr, low, pi-1)
+        quickSort(arr, pi+1, high)
+    }
+}`,
+    status: "Accepted",
+    runtime: "3ms",
+  },
+]
+
+// Duplicate for seamless loop
+const duplicatedTemplates = [...codeTemplates, ...codeTemplates]
 
 export function HeroSection() {
   const [mounted, setMounted] = useState(false)
@@ -17,6 +107,19 @@ export function HeroSection() {
       {/* Background effects */}
       <div className="absolute inset-0 bg-radial-glow" />
       <div className="absolute inset-0 bg-grid-pattern opacity-20" />
+
+      {/* Large watermark logo in background */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden">
+        <div className="relative w-[800px] h-[800px] opacity-[0.03]">
+          <Image
+            src="/Light.png"
+            alt=""
+            fill
+            className="object-contain"
+            priority
+          />
+        </div>
+      </div>
 
       {/* Animated gradient orbs */}
       <div className="absolute top-1/4 left-1/4 h-96 w-96 rounded-full bg-primary/10 blur-[120px] animate-pulse" />
@@ -76,81 +179,66 @@ export function HeroSection() {
           </div>
         </div>
 
-        {/* Code Preview Card */}
+        {/* Moving Code Templates Strip */}
         <div
-          className={`mx-auto mt-16 max-w-4xl transition-all duration-1000 delay-500 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}
+          className={`mt-20 transition-all duration-1000 delay-500 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}
         >
+          {/* Gradient fade on edges */}
           <div className="relative">
-            {/* Glow effect */}
-            <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-primary/20 via-secondary/20 to-primary/20 blur-xl opacity-60" />
+            <div className="absolute left-0 top-0 bottom-0 w-28 bg-gradient-to-r from-background to-transparent z-10 pointer-events-none" />
+            <div className="absolute right-0 top-0 bottom-0 w-28 bg-gradient-to-l from-background to-transparent z-10 pointer-events-none" />
+            
+            {/* Scrolling container */}
+            <div className="overflow-hidden">
+              <div className="flex gap-6 animate-scroll-left hover:[animation-play-state:paused]">
+                {duplicatedTemplates.map((template, index) => (
+                  <div
+                    key={`${template.name}-${index}`}
+                    className="flex-shrink-0 w-[420px] group"
+                  >
+                    <div className="relative overflow-hidden rounded-2xl border border-border/50 bg-card/80 backdrop-blur-sm shadow-xl transition-all duration-300 group-hover:border-primary/30 group-hover:shadow-2xl group-hover:scale-[1.02]">
+                      {/* Window header */}
+                      <div className="flex items-center justify-between border-b border-border/50 bg-background/60 px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <div className="flex gap-1.5">
+                            <div className="h-3 w-3 rounded-full bg-red-500/70" />
+                            <div className="h-3 w-3 rounded-full bg-yellow-500/70" />
+                            <div className="h-3 w-3 rounded-full bg-green-500/70" />
+                          </div>
+                          <span className="text-xs text-muted-foreground font-mono">{template.name}</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="rounded-full bg-green-500/20 px-2.5 py-1 text-xs text-green-400 font-medium">
+                            {template.status}
+                          </span>
+                          <span className="text-xs text-muted-foreground">{template.runtime}</span>
+                        </div>
+                      </div>
 
-            {/* Main card */}
-            <div className="relative overflow-hidden rounded-2xl border border-border/50 bg-card shadow-2xl">
-              {/* Window header */}
-              <div className="flex items-center justify-between border-b border-border/50 bg-background/80 px-4 py-3">
-                <div className="flex items-center gap-3">
-                  <div className="flex gap-1.5">
-                    <div className="h-3 w-3 rounded-full bg-red-500/80" />
-                    <div className="h-3 w-3 rounded-full bg-yellow-500/80" />
-                    <div className="h-3 w-3 rounded-full bg-green-500/80" />
+                      {/* Code content */}
+                      <div className="p-4 font-mono text-sm leading-relaxed overflow-hidden h-[200px]">
+                        <pre className="text-foreground/80">
+                          <code>{template.code}</code>
+                        </pre>
+                      </div>
+
+                      {/* Language badge */}
+                      <div className="absolute bottom-3 right-3">
+                        <span className="rounded-md bg-primary/10 px-2 py-1 text-xs font-medium text-primary">
+                          {template.language}
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Terminal className="h-3.5 w-3.5" />
-                    <span>two-sum.py</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 text-xs">
-                  <span className="rounded-full bg-green-500/20 px-2.5 py-1 text-green-400 font-medium">Accepted</span>
-                  <span className="text-muted-foreground">Runtime: 4ms</span>
-                </div>
-              </div>
-
-              {/* Code content */}
-              <div className="flex">
-                {/* Line numbers */}
-                <div className="border-r border-border/30 bg-background/50 px-4 py-5 text-right font-mono text-sm text-muted-foreground/40 select-none">
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
-                    <div key={n} className="leading-7">{n}</div>
-                  ))}
-                </div>
-
-                {/* Code */}
-                <div className="flex-1 overflow-x-auto p-5 font-mono text-sm">
-                  <pre className="leading-7">
-                    <code>
-                      <span className="text-primary">def</span> <span className="text-green-400">two_sum</span>
-                      <span className="text-foreground">(nums, target):</span>
-                      {"\n"}
-                      {"    "}
-                      <span className="text-muted-foreground">{"# Hash map for O(n) lookup"}</span>
-                      {"\n"}
-                      {"    "}seen = {"{}"}
-                      {"\n\n"}
-                      {"    "}
-                      <span className="text-primary">for</span>
-                      <span className="text-foreground"> i, num </span>
-                      <span className="text-primary">in</span>
-                      <span className="text-secondary"> enumerate</span>
-                      <span className="text-foreground">(nums):</span>
-                      {"\n"}
-                      {"        "}complement = target - num{"\n"}
-                      {"        "}
-                      <span className="text-primary">if</span>
-                      <span className="text-foreground"> complement </span>
-                      <span className="text-primary">in</span>
-                      <span className="text-foreground"> seen:</span>
-                      {"\n"}
-                      {"            "}
-                      <span className="text-primary">return</span>
-                      <span className="text-foreground"> [seen[complement], i]</span>
-                      {"\n"}
-                      {"        "}seen[num] = i
-                    </code>
-                  </pre>
-                </div>
+                ))}
               </div>
             </div>
           </div>
+
+          {/* Caption */}
+          <p className="text-center mt-6 text-sm text-muted-foreground">
+            Solve problems in <span className="text-primary font-medium">Python</span>, <span className="text-primary font-medium">C++</span>, <span className="text-primary font-medium">Java</span>, <span className="text-primary font-medium">JavaScript</span>, <span className="text-primary font-medium">Rust</span>, <span className="text-primary font-medium">Go</span> and more
+          </p>
         </div>
       </div>
     </section>

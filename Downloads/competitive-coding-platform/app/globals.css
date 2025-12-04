@@ -219,8 +219,8 @@
     background-clip: text;
   }
   .bg-grid-pattern {
-    background-image: linear-gradient(oklch(0.28 0.02 260 / 0.3) 1px, transparent 1px),
-      linear-gradient(90deg, oklch(0.28 0.02 260 / 0.3) 1px, transparent 1px);
+    background-image: linear-gradient(oklch(0.28 0.02 260 / 1.0) 1.5px, transparent 1.5px),
+      linear-gradient(90deg, oklch(0.28 0.02 260 / 1.0) 1.5px, transparent 1.5px);
     background-size: 60px 60px;
   }
   .bg-radial-glow {
@@ -228,5 +228,33 @@
   }
   .bg-radial-glow-accent {
     background: radial-gradient(ellipse 80% 50% at 50% -20%, oklch(0.72 0.18 55 / 0.12), transparent);
+  }
+
+  /* Infinite scroll animation for code templates */
+  .animate-scroll-left {
+    animation: scroll-left 20s linear infinite;
+  }
+
+  @keyframes scroll-left {
+    0% {
+      transform: translateX(0);
+    }
+    100% {
+      transform: translateX(-50%);
+    }
+  }
+
+  /* Infinite scroll animation for company logos */
+  .animate-scroll-companies {
+    animation: scroll-companies 25s linear infinite;
+  }
+
+  @keyframes scroll-companies {
+    0% {
+      transform: translateX(0);
+    }
+    100% {
+      transform: translateX(-50%);
+    }
   }
 }
