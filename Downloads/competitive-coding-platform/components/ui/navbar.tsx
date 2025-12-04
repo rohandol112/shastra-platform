@@ -10,7 +10,6 @@ import { cn } from "@/lib/utils"
 const navLinks = [
   { href: "#contact", label: "Contact" },
   { href: "#faq", label: "FAQ" },
-  { href: "/about", label: "About" },
 ]
 
 export function Navbar() {
@@ -48,8 +47,8 @@ export function Navbar() {
           </span>
         </Link>
 
-        {/* Desktop Navigation */}
-        <div className="hidden items-center gap-6 lg:flex">
+        {/* Desktop Navigation - Centered */}
+        <div className="hidden absolute left-1/2 -translate-x-1/2 items-center gap-6 lg:flex">
           {navLinks.map((link) => (
             <Link
               key={link.href}
