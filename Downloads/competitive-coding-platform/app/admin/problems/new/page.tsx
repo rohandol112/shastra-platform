@@ -117,7 +117,7 @@ function CreateProblemPage() {
       if (timeLimitMatch) newFormData.timeLimit = Math.round(parseFloat(timeLimitMatch[1]) * 1000)
 
       const memoryLimitMatch = text.match(/\*\*Memory limit:\*\*\s+(\d+)\s*MB/i)
-      if (memoryLimitMatch) newFormData.memoryLimit = parseInt(memoryLimitMatch[1])
+      if (memoryLimitMatch) newFormData.memoryLimit = parseInt(memoryLimitMatch[1]) * 1024
 
       const statementMatch = text.match(/## Statement\s*([\s\S]*?)(?=### |## |$)/i)
       if (statementMatch) newFormData.statement = statementMatch[1].trim()
