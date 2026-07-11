@@ -119,8 +119,17 @@ function CreateProblemPage() {
       const memoryLimitMatch = text.match(/\*\*Memory limit:\*\*\s+(\d+)\s*MB/i)
       if (memoryLimitMatch) newFormData.memoryLimit = parseInt(memoryLimitMatch[1])
 
-      const statementMatch = text.match(/## Statement\s*([\s\S]*?)(?=## |$)/i)
+      const statementMatch = text.match(/## Statement\s*([\s\S]*?)(?=### |## |$)/i)
       if (statementMatch) newFormData.statement = statementMatch[1].trim()
+
+      const inputFormatMatch = text.match(/### Input Format\s*([\s\S]*?)(?=### |## |$)/i)
+      if (inputFormatMatch) newFormData.inputFormat = inputFormatMatch[1].trim()
+
+      const outputFormatMatch = text.match(/### Output Format\s*([\s\S]*?)(?=### |## |$)/i)
+      if (outputFormatMatch) newFormData.outputFormat = outputFormatMatch[1].trim()
+
+      const constraintsMatch = text.match(/### Constraints\s*([\s\S]*?)(?=### |## |$)/i)
+      if (constraintsMatch) newFormData.constraints = constraintsMatch[1].trim()
 
       setFormData(newFormData)
       toast.success("Problem details imported from Markdown")
