@@ -501,7 +501,7 @@ function CreateProblemPage() {
                           onChange={(e) => updateExample(index, "input", e.target.value)}
                           placeholder={"2 7 11 15\n9"}
                           rows={2}
-                          className="border-input bg-card font-mono text-foreground"
+                          className="border-input bg-card font-mono text-foreground max-h-40 overflow-y-auto"
                         />
                       </div>
                       <div className="space-y-2">
@@ -511,7 +511,7 @@ function CreateProblemPage() {
                           onChange={(e) => updateExample(index, "output", e.target.value)}
                           placeholder="0 1"
                           rows={2}
-                          className="border-input bg-card font-mono text-foreground"
+                          className="border-input bg-card font-mono text-foreground max-h-40 overflow-y-auto"
                         />
                       </div>
                     </div>
@@ -598,7 +598,7 @@ function CreateProblemPage() {
                           value={testCase.input}
                           onChange={(e) => updateTestCase(index, "input", e.target.value)}
                           rows={2}
-                          className="border-input bg-card font-mono text-foreground"
+                          className="border-input bg-card font-mono text-foreground max-h-40 overflow-y-auto"
                         />
                       </div>
                       <div className="space-y-2">
@@ -607,7 +607,7 @@ function CreateProblemPage() {
                           value={testCase.expectedOutput}
                           onChange={(e) => updateTestCase(index, "expectedOutput", e.target.value)}
                           rows={2}
-                          className="border-input bg-card font-mono text-foreground"
+                          className="border-input bg-card font-mono text-foreground max-h-40 overflow-y-auto"
                         />
                       </div>
                     </div>
