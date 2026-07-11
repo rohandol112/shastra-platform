@@ -1,39 +1,72 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
+import { Suspense } from "react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
-import { Eye, EyeOff, Loader2, ArrowLeft, Mail, Phone } from "lucide-react"
+import { Eye, EyeOff, Loader2, ArrowLeft, Mail, Phone, AlertCircle } from "lucide-react"
+import { useAuthStore, isAdminRole } from "@/lib/stores/auth-store"
+import { ApiError } from "@/lib/api"
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const login = useAuthStore((s) => s.login)
+  const user = useAuthStore((s) => s.user)
+  const hydrated = useAuthStore((s) => s.hydrated)
+
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [loginMethod, setLoginMethod] = useState<"email" | "phone">("email")
   const [formData, setFormData] = useState({
     identifier: "",
     password: "",
   })
 
+  // Already logged in? Go straight to the app.
+  useEffect(() => {
+    if (hydrated && user) {
+      router.replace(isAdminRole(user) ? "/admin" : "/dashboard")
+    }
+  }, [hydrated, user, router])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError(null)
     setIsLoading(true)
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    router.push("/dashboard")
+    try {
+      const loggedIn = await login(formData.identifier.trim(), formData.password)
+      toast.success(`Welcome back, ${loggedIn.username}!`)
+      const redirect = searchParams.get("redirect")
+      if (redirect && redirect.startsWith("/")) {
+        router.push(redirect)
+      } else {
+        router.push(isAdminRole(loggedIn) ? "/admin" : "/dashboard")
+      }
+    } catch (err) {
+      setIsLoading(false)
+      if (err instanceof ApiError) {
+        setError(err.message)
+      } else {
+        setError("Something went wrong. Please try again.")
+      }
+    }
   }
 
-  const handleOAuthLogin = async (provider: "google" | "github") => {
-    setIsLoading(true)
-    // OAuth flow would be implemented here with backend API
-    console.log(`Initiating ${provider} OAuth login...`)
-    await new Promise((resolve) => setTimeout(resolve, 1500))
-    setIsLoading(false)
+  const handleOAuthLogin = (provider: "google" | "github") => {
+    toast.info(
+      provider === "google"
+        ? "Google sign-in is not enabled yet — please use email or phone."
+        : "GitHub sign-in is not enabled yet — please use email or phone."
+    )
   }
 
   return (
@@ -45,15 +78,10 @@ export default function LoginPage() {
 
         <div className="relative flex h-full flex-col justify-between p-12">
           <Link href="/" className="flex items-center gap-3">
-            <Image
-              src="/Light.png"
-              alt="SHASTRA Logo"
-              width={44}
-              height={44}
-              className="h-11 w-11 object-contain"
-            />
+            <Image src="/Light.png" alt="SHASTRA Logo" width={44} height={44} className="h-11 w-11 object-contain" />
             <span className="text-xl font-bold">
-              <span className="text-primary">SHA</span><span className="text-secondary">STRA</span>
+              <span className="text-primary">SHA</span>
+              <span className="text-secondary">STRA</span>
             </span>
           </Link>
 
@@ -92,15 +120,10 @@ export default function LoginPage() {
           {/* Mobile logo */}
           <div className="mb-8 lg:hidden">
             <Link href="/" className="flex items-center gap-3">
-              <Image
-                src="/Light.png"
-                alt="SHASTRA Logo"
-                width={44}
-                height={44}
-                className="h-11 w-11 object-contain"
-              />
+              <Image src="/Light.png" alt="SHASTRA Logo" width={44} height={44} className="h-11 w-11 object-contain" />
               <span className="text-xl font-bold">
-                <span className="text-primary">SHA</span><span className="text-secondary">STRA</span>
+                <span className="text-primary">SHA</span>
+                <span className="text-secondary">STRA</span>
               </span>
             </Link>
           </div>
@@ -197,18 +220,26 @@ export default function LoginPage() {
             </button>
           </div>
 
+          {error && (
+            <div className="mb-4 flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
               <Label htmlFor="identifier" className="text-sm font-medium text-foreground">
-                {loginMethod === "email" ? "Email address" : "Phone number"}
+                {loginMethod === "email" ? "Email or username" : "Phone number"}
               </Label>
               <Input
                 id="identifier"
-                type={loginMethod === "email" ? "email" : "tel"}
-                placeholder={loginMethod === "email" ? "you@example.com" : "+1 (555) 000-0000"}
+                type={loginMethod === "email" ? "text" : "tel"}
+                placeholder={loginMethod === "email" ? "you@example.com" : "+919876543210"}
                 value={formData.identifier}
                 onChange={(e) => setFormData({ ...formData, identifier: e.target.value })}
                 required
+                autoComplete="username"
                 className="h-11 border-border/50 bg-card/50 text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-primary"
               />
             </div>
@@ -218,9 +249,6 @@ export default function LoginPage() {
                 <Label htmlFor="password" className="text-sm font-medium text-foreground">
                   Password
                 </Label>
-                <Link href="/forgot-password" className="text-sm text-primary hover:underline">
-                  Forgot password?
-                </Link>
               </div>
               <div className="relative">
                 <Input
@@ -230,6 +258,7 @@ export default function LoginPage() {
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   required
+                  autoComplete="current-password"
                   className="h-11 border-border/50 bg-card/50 pr-10 text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-primary"
                 />
                 <button
@@ -268,5 +297,13 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   )
 }

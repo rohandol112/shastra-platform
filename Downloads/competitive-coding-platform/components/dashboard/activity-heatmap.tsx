@@ -12,30 +12,68 @@ interface ActivityHeatmapProps {
   data: ActivityData[]
 }
 
-export function ActivityHeatmap({ data }: ActivityHeatmapProps) {
-  const weeks = useMemo(() => {
-    const result: ActivityData[][] = []
-    let currentWeek: ActivityData[] = []
+function toDateKey(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, "0")
+  const day = String(d.getDate()).padStart(2, "0")
+  return `${y}-${m}-${day}`
+}
 
-    const firstDate = new Date(data[0]?.date || new Date())
-    const dayOfWeek = firstDate.getDay()
-    for (let i = 0; i < dayOfWeek; i++) {
-      currentWeek.push({ date: "", count: -1 })
+export function ActivityHeatmap({ data }: ActivityHeatmapProps) {
+  // The API only returns days that HAVE submissions — build a full contiguous
+  // 52-week grid ending today and look counts up per day.
+  const { weeks, totalSubmissions, currentStreak } = useMemo(() => {
+    const countByDate = new Map<string, number>()
+    for (const d of data) {
+      // normalize whatever date format we get to YYYY-MM-DD
+      const key = d.date.length > 10 ? d.date.slice(0, 10) : d.date
+      countByDate.set(key, (countByDate.get(key) ?? 0) + d.count)
     }
 
-    data.forEach((day) => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    const days: ActivityData[] = []
+    const totalDays = 52 * 7
+    for (let i = totalDays - 1; i >= 0; i--) {
+      const date = new Date(today)
+      date.setDate(date.getDate() - i)
+      const key = toDateKey(date)
+      days.push({ date: key, count: countByDate.get(key) ?? 0 })
+    }
+
+    // pad the first week so columns start on Sunday
+    const result: ActivityData[][] = []
+    let currentWeek: ActivityData[] = []
+    const firstDayOfWeek = new Date(days[0].date + "T00:00:00").getDay()
+    for (let i = 0; i < firstDayOfWeek; i++) {
+      currentWeek.push({ date: "", count: -1 })
+    }
+    for (const day of days) {
       currentWeek.push(day)
       if (currentWeek.length === 7) {
         result.push(currentWeek)
         currentWeek = []
       }
-    })
+    }
+    if (currentWeek.length > 0) result.push(currentWeek)
 
-    if (currentWeek.length > 0) {
-      result.push(currentWeek)
+    const total = days.reduce((acc, d) => acc + Math.max(0, d.count), 0)
+
+    // streak: consecutive days with activity counting back from today
+    // (an empty today doesn't break yesterday's streak)
+    let streak = 0
+    for (let i = days.length - 1; i >= 0; i--) {
+      if (days[i].count > 0) {
+        streak++
+      } else if (i === days.length - 1) {
+        continue
+      } else {
+        break
+      }
     }
 
-    return result
+    return { weeks: result, totalSubmissions: total, currentStreak: streak }
   }, [data])
 
   const getIntensity = (count: number) => {
@@ -46,9 +84,6 @@ export function ActivityHeatmap({ data }: ActivityHeatmapProps) {
     if (count <= 3) return "bg-emerald-500/70"
     return "bg-emerald-500"
   }
-
-  const totalSubmissions = data.reduce((acc, d) => acc + Math.max(0, d.count), 0)
-  const currentStreak = calculateStreak(data)
 
   return (
     <div className="rounded-lg border border-border/50 bg-card/30 p-5">
@@ -84,19 +119,4 @@ export function ActivityHeatmap({ data }: ActivityHeatmapProps) {
       </div>
     </div>
   )
-}
-
-function calculateStreak(data: ActivityData[]): number {
-  let streak = 0
-  const sortedData = [...data].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-
-  for (const day of sortedData) {
-    if (day.count > 0) {
-      streak++
-    } else {
-      break
-    }
-  }
-
-  return streak
 }

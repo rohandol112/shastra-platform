@@ -41,6 +41,18 @@ export default function PlagiarismPage() {
       <Navbar user={mockUser} />
 
       <main className="mx-auto max-w-7xl px-4 pb-12 pt-24 lg:px-6 lg:pt-28">
+        {/* Backend availability notice */}
+        <div className="mb-6 flex items-start gap-3 rounded-xl border border-warning/30 bg-warning/5 p-4">
+          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-warning" />
+          <div>
+            <p className="font-medium text-foreground">Plagiarism detection is not connected yet</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              The plagiarism API is not enabled on the backend. The data below is sample data for preview purposes
+              only.
+            </p>
+          </div>
+        </div>
+
         {/* Header */}
         <div className="mb-8 flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
           <div>

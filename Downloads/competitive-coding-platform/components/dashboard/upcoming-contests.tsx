@@ -4,15 +4,17 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { ChevronRight } from "lucide-react"
-import type { Contest } from "@/lib/mock-data"
+import type { ContestListItem } from "@/lib/api"
 import { cn } from "@/lib/utils"
+
+type Contest = ContestListItem
 
 interface UpcomingContestsProps {
   contests: Contest[]
 }
 
 export function UpcomingContests({ contests }: UpcomingContestsProps) {
-  const upcomingContests = contests.filter((c) => c.status === "UPCOMING" || c.status === "RUNNING")
+  const upcomingContests = contests.filter((c) => c.status === "SCHEDULED" || c.status === "RUNNING")
 
   if (upcomingContests.length === 0) {
     return (

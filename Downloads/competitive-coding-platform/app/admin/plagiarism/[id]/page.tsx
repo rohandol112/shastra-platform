@@ -80,6 +80,14 @@ print(two_sum(numbers, t))`
       <Navbar user={mockUser} />
 
       <main className="mx-auto max-w-7xl px-4 pb-24 pt-24 lg:px-6 lg:pt-28">
+        {/* Backend availability notice */}
+        <div className="mb-6 rounded-xl border border-warning/30 bg-warning/5 p-4 text-sm">
+          <p className="font-medium text-foreground">Sample data — plagiarism API not connected yet</p>
+          <p className="mt-1 text-muted-foreground">
+            The backend does not expose plagiarism endpoints yet, so this review screen shows demo content.
+          </p>
+        </div>
+
         {/* Header */}
         <div className="mb-8">
           <Link

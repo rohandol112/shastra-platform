@@ -1,21 +1,31 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Eye, EyeOff, Loader2, ArrowLeft, Check } from "lucide-react"
+import { Eye, EyeOff, Loader2, ArrowLeft, Check, AlertCircle } from "lucide-react"
+import { useAuthStore } from "@/lib/stores/auth-store"
+import { ApiError, type FieldError } from "@/lib/api"
 
 export default function RegisterPage() {
   const router = useRouter()
+  const register = useAuthStore((s) => s.register)
+  const user = useAuthStore((s) => s.user)
+  const hydrated = useAuthStore((s) => s.hydrated)
+
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [formData, setFormData] = useState({
-    fullName: "",
+    firstName: "",
+    lastName: "",
     username: "",
     email: "",
     phone: "",
@@ -23,18 +33,65 @@ export default function RegisterPage() {
     confirmPassword: "",
   })
 
+  useEffect(() => {
+    if (hydrated && user) router.replace("/dashboard")
+  }, [hydrated, user, router])
+
+  // Backend requires: 8+ chars with lowercase, uppercase and a digit
+  const passwordChecks = {
+    length: formData.password.length >= 8,
+    lower: /[a-z]/.test(formData.password),
+    upper: /[A-Z]/.test(formData.password),
+    digit: /\d/.test(formData.password),
+  }
+  const passwordValid = Object.values(passwordChecks).every(Boolean)
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError(null)
+    setFieldErrors({})
+
     if (formData.password !== formData.confirmPassword) {
-      alert("Passwords don't match")
+      setFieldErrors({ confirmPassword: "Passwords don't match" })
       return
     }
+    if (!passwordValid) {
+      setFieldErrors({ password: "Password must be 8+ characters with uppercase, lowercase and a number" })
+      return
+    }
+
     setIsLoading(true)
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    router.push("/dashboard")
+    try {
+      const created = await register({
+        email: formData.email.trim(),
+        password: formData.password,
+        confirmPassword: formData.confirmPassword,
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
+        username: formData.username.trim() ? formData.username.trim().toLowerCase() : undefined,
+        phone: formData.phone.trim() ? formData.phone.trim().replace(/[\s()-]/g, "") : undefined,
+      })
+      toast.success(`Welcome to SHASTRA, ${created.username}!`)
+      router.push("/dashboard")
+    } catch (err) {
+      setIsLoading(false)
+      if (err instanceof ApiError) {
+        setError(err.message)
+        if (err.errors) {
+          const mapped: Record<string, string> = {}
+          err.errors.forEach((fe: FieldError) => {
+            mapped[fe.field] = fe.message
+          })
+          setFieldErrors(mapped)
+        }
+      } else {
+        setError("Something went wrong. Please try again.")
+      }
+    }
   }
 
-  const passwordStrength = formData.password.length >= 8
+  const fieldError = (name: string) =>
+    fieldErrors[name] ? <p className="text-xs text-destructive">{fieldErrors[name]}</p> : null
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -45,15 +102,10 @@ export default function RegisterPage() {
 
         <div className="relative flex h-full flex-col justify-between p-12">
           <Link href="/" className="flex items-center gap-3">
-            <Image
-              src="/Light.png"
-              alt="SHASTRA Logo"
-              width={44}
-              height={44}
-              className="h-11 w-11 object-contain"
-            />
+            <Image src="/Light.png" alt="SHASTRA Logo" width={44} height={44} className="h-11 w-11 object-contain" />
             <span className="text-xl font-bold">
-              <span className="text-primary">SHA</span><span className="text-secondary">STRA</span>
+              <span className="text-primary">SHA</span>
+              <span className="text-secondary">STRA</span>
             </span>
           </Link>
 
@@ -62,10 +114,10 @@ export default function RegisterPage() {
 
             <div className="space-y-4">
               {[
-                "Access to 2,500+ coding problems",
-                "Compete in weekly contests",
+                "Access a growing library of coding problems",
+                "Compete in live contests",
                 "Track your progress with detailed analytics",
-                "Join a community of 50,000+ developers",
+                "Climb the global leaderboard",
               ].map((feature, i) => (
                 <div key={i} className="flex items-center gap-3">
                   <div className="flex h-6 w-6 items-center justify-center rounded-full bg-success/20">
@@ -77,7 +129,7 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          <p className="text-sm text-muted-foreground">Trusted by engineers at Google, Microsoft, Amazon, and more.</p>
+          <p className="text-sm text-muted-foreground">Built for students, campuses and competitive programmers.</p>
         </div>
       </div>
 
@@ -87,15 +139,10 @@ export default function RegisterPage() {
           {/* Mobile logo */}
           <div className="mb-8 lg:hidden">
             <Link href="/" className="flex items-center gap-3">
-              <Image
-                src="/Light.png"
-                alt="SHASTRA Logo"
-                width={44}
-                height={44}
-                className="h-11 w-11 object-contain"
-              />
+              <Image src="/Light.png" alt="SHASTRA Logo" width={44} height={44} className="h-11 w-11 object-contain" />
               <span className="text-xl font-bold">
-                <span className="text-primary">SHA</span><span className="text-secondary">STRA</span>
+                <span className="text-primary">SHA</span>
+                <span className="text-secondary">STRA</span>
               </span>
             </Link>
           </div>
@@ -113,37 +160,67 @@ export default function RegisterPage() {
             <p className="mt-2 text-muted-foreground">Join thousands of developers on SHASTRA</p>
           </div>
 
+          {error && (
+            <div className="mb-4 flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="fullName" className="text-sm font-medium text-foreground">
-                  Full Name
+                <Label htmlFor="firstName" className="text-sm font-medium text-foreground">
+                  First Name
                 </Label>
                 <Input
-                  id="fullName"
+                  id="firstName"
                   type="text"
-                  placeholder="John Doe"
-                  value={formData.fullName}
-                  onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                  placeholder="John"
+                  value={formData.firstName}
+                  onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
                   required
+                  minLength={2}
                   className="h-11 border-border/50 bg-card/50 text-foreground placeholder:text-muted-foreground focus:border-primary"
                 />
+                {fieldError("firstName")}
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="username" className="text-sm font-medium text-foreground">
-                  Username
+                <Label htmlFor="lastName" className="text-sm font-medium text-foreground">
+                  Last Name
                 </Label>
                 <Input
-                  id="username"
+                  id="lastName"
                   type="text"
-                  placeholder="johndoe"
-                  value={formData.username}
-                  onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                  placeholder="Doe"
+                  value={formData.lastName}
+                  onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
                   required
+                  minLength={2}
                   className="h-11 border-border/50 bg-card/50 text-foreground placeholder:text-muted-foreground focus:border-primary"
                 />
+                {fieldError("lastName")}
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="username" className="text-sm font-medium text-foreground">
+                Username <span className="text-muted-foreground">(letters &amp; numbers only)</span>
+              </Label>
+              <Input
+                id="username"
+                type="text"
+                placeholder="johndoe"
+                value={formData.username}
+                onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                minLength={3}
+                maxLength={30}
+                pattern="[a-zA-Z0-9]*"
+                title="Letters and numbers only"
+                className="h-11 border-border/50 bg-card/50 text-foreground placeholder:text-muted-foreground focus:border-primary"
+              />
+              {fieldError("username")}
             </div>
 
             <div className="space-y-2">
@@ -157,22 +234,25 @@ export default function RegisterPage() {
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 required
+                autoComplete="email"
                 className="h-11 border-border/50 bg-card/50 text-foreground placeholder:text-muted-foreground focus:border-primary"
               />
+              {fieldError("email")}
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="phone" className="text-sm font-medium text-foreground">
-                Phone Number <span className="text-muted-foreground">(optional)</span>
+                Phone Number <span className="text-muted-foreground">(optional, e.g. +919876543210)</span>
               </Label>
               <Input
                 id="phone"
                 type="tel"
-                placeholder="+1 (555) 000-0000"
+                placeholder="+919876543210"
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 className="h-11 border-border/50 bg-card/50 text-foreground placeholder:text-muted-foreground focus:border-primary"
               />
+              {fieldError("phone")}
             </div>
 
             <div className="space-y-2">
@@ -188,24 +268,27 @@ export default function RegisterPage() {
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   required
                   minLength={8}
+                  autoComplete="new-password"
                   className="h-11 border-border/50 bg-card/50 pr-10 text-foreground placeholder:text-muted-foreground focus:border-primary"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
               {formData.password && (
-                <div className="flex items-center gap-2 text-xs">
-                  <div className={`h-1 w-16 rounded-full ${passwordStrength ? "bg-success" : "bg-destructive"}`} />
-                  <span className={passwordStrength ? "text-success" : "text-destructive"}>
-                    {passwordStrength ? "Strong" : "Too short"}
-                  </span>
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                  <PasswordRule ok={passwordChecks.length} label="8+ characters" />
+                  <PasswordRule ok={passwordChecks.upper} label="Uppercase" />
+                  <PasswordRule ok={passwordChecks.lower} label="Lowercase" />
+                  <PasswordRule ok={passwordChecks.digit} label="Number" />
                 </div>
               )}
+              {fieldError("password")}
             </div>
 
             <div className="space-y-2">
@@ -219,8 +302,13 @@ export default function RegisterPage() {
                 value={formData.confirmPassword}
                 onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                 required
+                autoComplete="new-password"
                 className="h-11 border-border/50 bg-card/50 text-foreground placeholder:text-muted-foreground focus:border-primary"
               />
+              {formData.confirmPassword && formData.password !== formData.confirmPassword && (
+                <p className="text-xs text-destructive">Passwords don't match</p>
+              )}
+              {fieldError("confirmPassword")}
             </div>
 
             <Button
@@ -248,5 +336,13 @@ export default function RegisterPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+function PasswordRule({ ok, label }: { ok: boolean; label: string }) {
+  return (
+    <span className={ok ? "text-success" : "text-muted-foreground"}>
+      {ok ? "✓" : "○"} {label}
+    </span>
   )
 }

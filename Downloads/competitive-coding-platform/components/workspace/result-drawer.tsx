@@ -2,27 +2,22 @@
 
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Check, X, Clock, AlertTriangle, ChevronDown, Zap, HardDrive } from "lucide-react"
+import { Check, X, Clock, AlertTriangle, ChevronDown, Zap, HardDrive, Loader2, Terminal } from "lucide-react"
 import { cn } from "@/lib/utils"
 import Confetti from "react-confetti"
 import { useState, useEffect } from "react"
-
-export type ResultStatus = "ACCEPTED" | "WRONG_ANSWER" | "TIME_LIMIT" | "RUNTIME_ERROR" | "COMPILE_ERROR" | null
+import type { WorkspaceResult } from "@/lib/stores/workspace-store"
 
 interface ResultDrawerProps {
   isOpen: boolean
   onClose: () => void
-  status: ResultStatus
-  runtime?: string
-  memory?: string
-  output?: string
-  expected?: string
-  error?: string
-  testCasesPassed?: number
-  totalTestCases?: number
+  result: WorkspaceResult | null
 }
 
-const statusConfig = {
+const statusConfig: Record<
+  string,
+  { icon: any; label: string; color: string; bgColor: string; borderColor: string; gradient: string; spin?: boolean }
+> = {
   ACCEPTED: {
     icon: Check,
     label: "Accepted",
@@ -39,9 +34,17 @@ const statusConfig = {
     borderColor: "border-red-500/30",
     gradient: "from-red-500/20 to-red-500/5",
   },
-  TIME_LIMIT: {
+  TIME_LIMIT_EXCEEDED: {
     icon: Clock,
     label: "Time Limit Exceeded",
+    color: "text-amber-400",
+    bgColor: "bg-amber-500/10",
+    borderColor: "border-amber-500/30",
+    gradient: "from-amber-500/20 to-amber-500/5",
+  },
+  MEMORY_LIMIT_EXCEEDED: {
+    icon: HardDrive,
+    label: "Memory Limit Exceeded",
     color: "text-amber-400",
     bgColor: "bg-amber-500/10",
     borderColor: "border-amber-500/30",
@@ -63,37 +66,74 @@ const statusConfig = {
     borderColor: "border-red-500/30",
     gradient: "from-red-500/20 to-red-500/5",
   },
+  PARTIAL: {
+    icon: Check,
+    label: "Partially Accepted",
+    color: "text-amber-400",
+    bgColor: "bg-amber-500/10",
+    borderColor: "border-amber-500/30",
+    gradient: "from-amber-500/20 to-amber-500/5",
+  },
+  FAILED: {
+    icon: AlertTriangle,
+    label: "Failed",
+    color: "text-red-400",
+    bgColor: "bg-red-500/10",
+    borderColor: "border-red-500/30",
+    gradient: "from-red-500/20 to-red-500/5",
+  },
+  QUEUED: {
+    icon: Loader2,
+    label: "Still Judging…",
+    color: "text-sky-400",
+    bgColor: "bg-sky-500/10",
+    borderColor: "border-sky-500/30",
+    gradient: "from-sky-500/20 to-sky-500/5",
+    spin: true,
+  },
+  RUNNING: {
+    icon: Loader2,
+    label: "Running…",
+    color: "text-sky-400",
+    bgColor: "bg-sky-500/10",
+    borderColor: "border-sky-500/30",
+    gradient: "from-sky-500/20 to-sky-500/5",
+    spin: true,
+  },
 }
 
-export function ResultDrawer({
-  isOpen,
-  onClose,
-  status,
-  runtime,
-  memory,
-  output,
-  expected,
-  error,
-  testCasesPassed,
-  totalTestCases,
-}: ResultDrawerProps) {
+const fallbackConfig = {
+  icon: Terminal,
+  label: "Result",
+  color: "text-foreground",
+  bgColor: "bg-muted/30",
+  borderColor: "border-border/50",
+  gradient: "from-muted/40 to-muted/10",
+}
+
+export function ResultDrawer({ isOpen, onClose, result }: ResultDrawerProps) {
   const [showConfetti, setShowConfetti] = useState(false)
   const [windowSize, setWindowSize] = useState({ width: 0, height: 0 })
 
+  const status = result?.status ?? null
+  const isAccepted = status === "ACCEPTED"
+
   useEffect(() => {
-    if (status === "ACCEPTED" && isOpen) {
+    // Confetti only for real submissions, not sample runs
+    if (isAccepted && result?.kind === "submit" && isOpen) {
       setShowConfetti(true)
-      setTimeout(() => setShowConfetti(false), 4000)
+      const t = setTimeout(() => setShowConfetti(false), 4000)
+      return () => clearTimeout(t)
     }
-  }, [status, isOpen])
+  }, [isAccepted, result?.kind, isOpen])
 
   useEffect(() => {
     setWindowSize({ width: window.innerWidth, height: window.innerHeight })
   }, [])
 
-  if (!isOpen || !status) return null
+  if (!isOpen || !result || !status) return null
 
-  const config = statusConfig[status]
+  const config = statusConfig[status] ?? { ...fallbackConfig, label: String(status).replace(/_/g, " ") }
   const Icon = config.icon
 
   return (
@@ -124,7 +164,7 @@ export function ResultDrawer({
                 config.borderColor,
               )}
             >
-              <Icon className={cn("h-6 w-6", config.color)} />
+              <Icon className={cn("h-6 w-6", config.color, config.spin && "animate-spin")} />
             </div>
             <div>
               <Badge
@@ -135,13 +175,16 @@ export function ResultDrawer({
                   config.color,
                 )}
               >
-                {config.label}
+                {result.kind === "run" ? `Run: ${config.label}` : config.label}
               </Badge>
-              {testCasesPassed !== undefined && totalTestCases !== undefined && (
+              {result.testCasesPassed !== undefined && result.totalTestCases !== undefined && (
                 <p className="text-sm text-muted-foreground">
-                  <span className={status === "ACCEPTED" ? "text-emerald-400" : "text-red-400"}>{testCasesPassed}</span>
-                  /{totalTestCases} test cases passed
+                  <span className={isAccepted ? "text-emerald-400" : "text-red-400"}>{result.testCasesPassed}</span>/
+                  {result.totalTestCases} test cases passed
                 </p>
+              )}
+              {result.score !== undefined && result.score !== null && result.kind === "submit" && (
+                <p className="text-sm text-muted-foreground">Score: {result.score}</p>
               )}
             </div>
           </div>
@@ -152,63 +195,75 @@ export function ResultDrawer({
 
         {/* Content */}
         <div className="max-h-64 overflow-y-auto border-t border-border/30 px-6 py-4">
-          {status === "ACCEPTED" && (
-            <div className="flex gap-8">
-              {runtime && (
+          {/* Runtime / memory row */}
+          {(result.runtime || result.memory) && (
+            <div className="mb-4 flex gap-8">
+              {result.runtime && (
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
                     <Zap className="h-5 w-5 text-primary" />
                   </div>
                   <div>
                     <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Runtime</p>
-                    <p className="text-xl font-bold text-foreground">{runtime}</p>
+                    <p className="text-xl font-bold text-foreground">{result.runtime}</p>
                   </div>
                 </div>
               )}
-              {memory && (
+              {result.memory && (
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-violet-500/10">
                     <HardDrive className="h-5 w-5 text-violet-400" />
                   </div>
                   <div>
                     <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Memory</p>
-                    <p className="text-xl font-bold text-foreground">{memory}</p>
+                    <p className="text-xl font-bold text-foreground">{result.memory}</p>
                   </div>
                 </div>
               )}
             </div>
           )}
 
-          {status === "WRONG_ANSWER" && (
-            <div className="grid gap-4 md:grid-cols-2">
-              {output && (
-                <div>
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Your Output
-                  </p>
-                  <pre className="overflow-x-auto rounded-xl bg-[#0d1117] p-4 font-mono text-sm text-red-400 ring-1 ring-red-500/20">
-                    {output}
-                  </pre>
-                </div>
-              )}
-              {expected && (
-                <div>
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Expected</p>
-                  <pre className="overflow-x-auto rounded-xl bg-[#0d1117] p-4 font-mono text-sm text-emerald-400 ring-1 ring-emerald-500/20">
-                    {expected}
-                  </pre>
-                </div>
-              )}
+          {/* stdout (mainly for Run) */}
+          {result.stdout && (
+            <div className="mb-4">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Output</p>
+              <pre className="overflow-x-auto rounded-xl bg-[#0d1117] p-4 font-mono text-sm text-foreground ring-1 ring-border/40 whitespace-pre-wrap">
+                {result.stdout}
+              </pre>
             </div>
           )}
 
-          {(status === "COMPILE_ERROR" || status === "RUNTIME_ERROR") && error && (
-            <div>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Error Details</p>
-              <pre className="overflow-x-auto rounded-xl bg-[#0d1117] p-4 font-mono text-sm text-red-400 ring-1 ring-red-500/20">
-                {error}
+          {/* Compile errors */}
+          {result.compileOutput && (
+            <div className="mb-4">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Compiler Output
+              </p>
+              <pre className="overflow-x-auto rounded-xl bg-[#0d1117] p-4 font-mono text-sm text-red-400 ring-1 ring-red-500/20 whitespace-pre-wrap">
+                {result.compileOutput}
               </pre>
             </div>
+          )}
+
+          {/* stderr */}
+          {result.stderr && (
+            <div className="mb-4">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Error Details
+              </p>
+              <pre className="overflow-x-auto rounded-xl bg-[#0d1117] p-4 font-mono text-sm text-red-400 ring-1 ring-red-500/20 whitespace-pre-wrap">
+                {result.stderr}
+              </pre>
+            </div>
+          )}
+
+          {/* Nothing to show */}
+          {!result.stdout && !result.stderr && !result.compileOutput && !result.runtime && !result.memory && (
+            <p className="text-sm text-muted-foreground">
+              {status === "QUEUED" || status === "RUNNING"
+                ? "Your submission is in the judging queue. Check the Submissions tab in a moment."
+                : "No output produced."}
+            </p>
           )}
         </div>
       </div>

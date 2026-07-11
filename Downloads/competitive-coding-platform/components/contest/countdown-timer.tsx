@@ -27,6 +27,7 @@ export function CountdownTimer({ targetDate, className, size = "md", showLabels 
   const [isExpired, setIsExpired] = useState(false)
 
   useEffect(() => {
+    setIsExpired(false)
     const calculateTimeLeft = () => {
       const now = new Date().getTime()
       const target = new Date(targetDate).getTime()

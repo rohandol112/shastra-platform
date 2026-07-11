@@ -11,14 +11,17 @@ interface LiveTimerProps {
 export function LiveTimer({ endTime, className }: LiveTimerProps) {
   const [timeLeft, setTimeLeft] = useState("")
   const [isWarning, setIsWarning] = useState(false)
+  const [isEnded, setIsEnded] = useState(false)
 
   useEffect(() => {
+    setIsEnded(false)
     const calculateTimeLeft = () => {
       const now = new Date().getTime()
       const end = new Date(endTime).getTime()
       const diff = end - now
 
       if (diff <= 0) {
+        setIsEnded(true)
         return "00:00:00"
       }
 
@@ -52,7 +55,7 @@ export function LiveTimer({ endTime, className }: LiveTimerProps) {
         className,
       )}
     >
-      {timeLeft} remaining
+      {isEnded ? "Contest ended" : `${timeLeft} remaining`}
     </div>
   )
 }

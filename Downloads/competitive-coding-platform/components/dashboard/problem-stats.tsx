@@ -9,6 +9,7 @@ interface ProblemStatsProps {
 export function ProblemStats({ easy, medium, hard }: ProblemStatsProps) {
   const total = easy.solved + medium.solved + hard.solved
   const totalProblems = easy.total + medium.total + hard.total
+  const solvedRatio = totalProblems > 0 ? total / totalProblems : 0
 
   return (
     <div className="rounded-lg border border-border/50 bg-card/30 p-5">
@@ -37,13 +38,13 @@ export function ProblemStats({ easy, medium, hard }: ProblemStatsProps) {
               fill="none"
               stroke="currentColor"
               strokeWidth="3"
-              strokeDasharray={`${(total / totalProblems) * 97.4} 97.4`}
+              strokeDasharray={`${solvedRatio * 97.4} 97.4`}
               strokeLinecap="round"
               className="text-emerald-500"
             />
           </svg>
           <span className="absolute inset-0 flex items-center justify-center text-xs font-medium text-muted-foreground">
-            {Math.round((total / totalProblems) * 100)}%
+            {Math.round(solvedRatio * 100)}%
           </span>
         </div>
       </div>
@@ -68,7 +69,7 @@ function DifficultyRow({
   total: number
   color: "emerald" | "amber" | "red"
 }) {
-  const percentage = (solved / total) * 100
+  const percentage = total > 0 ? (solved / total) * 100 : 0
   const colorClasses = {
     emerald: "bg-emerald-500 text-emerald-400",
     amber: "bg-amber-500 text-amber-400",

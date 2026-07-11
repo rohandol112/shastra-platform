@@ -1,46 +1,120 @@
 "use client"
 
-import { useState } from "react"
-import { useParams } from "next/navigation"
+import { useCallback, useEffect, useState } from "react"
+import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
+import { toast } from "sonner"
 import { Navbar } from "@/components/ui/navbar"
 import { Button } from "@/components/ui/button"
 import { ProblemPanel } from "@/components/workspace/problem-panel"
 import { CodeEditor } from "@/components/workspace/code-editor"
-import { ResultDrawer, type ResultStatus } from "@/components/workspace/result-drawer"
-import { mockUser, mockProblems, mockSubmissions } from "@/lib/mock-data"
-import { ArrowLeft, Maximize2, Minimize2, Layout } from "lucide-react"
+import { ResultDrawer } from "@/components/workspace/result-drawer"
+import { ArrowLeft, Maximize2, Minimize2, Layout, Loader2 } from "lucide-react"
+import { useProblemStore } from "@/lib/stores/problem-store"
+import { useWorkspaceStore } from "@/lib/stores/workspace-store"
+import { useAuthStore } from "@/lib/stores/auth-store"
+import { submissionsApi, type SubmissionSummary } from "@/lib/api"
 
 export default function ProblemWorkspace() {
   const params = useParams()
+  const router = useRouter()
   const slug = params.slug as string
 
-  const [isRunning, setIsRunning] = useState(false)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [resultOpen, setResultOpen] = useState(false)
-  const [result, setResult] = useState<{
-    status: ResultStatus
-    runtime?: string
-    memory?: string
-    output?: string
-    expected?: string
-    error?: string
-    testCasesPassed?: number
-    totalTestCases?: number
-  }>({ status: null })
+  const { detail: problem, detailLoading, detailError, fetchProblem } = useProblemStore()
+  const token = useAuthStore((s) => s.token)
+  const hydrated = useAuthStore((s) => s.hydrated)
+
+  const {
+    language,
+    isRunning,
+    isSubmitting,
+    result,
+    resultOpen,
+    setLanguage,
+    getCode,
+    setCode,
+    resetCode,
+    runCode,
+    submitCode,
+    closeResult,
+  } = useWorkspaceStore()
+
   const [splitPosition, setSplitPosition] = useState(45)
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const [mySubmissions, setMySubmissions] = useState<SubmissionSummary[]>([])
+  const [submissionsLoading, setSubmissionsLoading] = useState(false)
 
-  const problem = mockProblems.find((p) => p.slug === slug)
-  const problemSubmissions = mockSubmissions.filter((s) => s.problemId === problem?.id)
+  // subscribing to drafts keeps `getCode` output fresh across edits
+  const drafts = useWorkspaceStore((s) => s.drafts)
+  const code = getCode(slug)
+  void drafts
 
-  if (!problem) {
+  useEffect(() => {
+    if (hydrated) fetchProblem(slug)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slug, hydrated])
+
+  const loadSubmissions = useCallback(async () => {
+    if (!token || !problem) return
+    setSubmissionsLoading(true)
+    try {
+      const data = await submissionsApi.my({ problemId: problem.id, limit: 20 })
+      setMySubmissions(data.submissions)
+    } catch {
+      // non-critical
+    } finally {
+      setSubmissionsLoading(false)
+    }
+  }, [token, problem])
+
+  useEffect(() => {
+    loadSubmissions()
+  }, [loadSubmissions])
+
+  const requireAuth = (): boolean => {
+    if (!token) {
+      toast.error("Please sign in to run or submit code")
+      router.push(`/login?redirect=/problems/${slug}`)
+      return false
+    }
+    return true
+  }
+
+  const handleRun = async () => {
+    if (!requireAuth() || !problem) return
+    // Use the first visible sample test case as stdin
+    const stdin = problem.sampleTestCases[0]?.input ?? ""
+    await runCode(slug, stdin)
+  }
+
+  const handleSubmit = async () => {
+    if (!requireAuth() || !problem) return
+    const verdict = await submitCode(slug, problem.id)
+    if (verdict) {
+      if (verdict.status === "ACCEPTED") {
+        toast.success("Accepted! Great job 🎉")
+      }
+      loadSubmissions()
+    }
+  }
+
+  if (!hydrated || detailLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  if (detailError || !problem) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-background">
         <div className="text-center">
           <div className="mb-4 text-6xl">404</div>
           <h1 className="mb-2 text-2xl font-bold text-foreground">Problem not found</h1>
-          <p className="mb-6 text-muted-foreground">This problem seems to have vanished into the void.</p>
+          <p className="mb-6 text-muted-foreground">
+            {detailError || "This problem seems to have vanished into the void."}
+          </p>
           <Link href="/problems">
             <Button>Back to Problems</Button>
           </Link>
@@ -49,54 +123,10 @@ export default function ProblemWorkspace() {
     )
   }
 
-  const handleRun = async (code: string, language: string) => {
-    setIsRunning(true)
-    setResultOpen(false)
-    await new Promise((resolve) => setTimeout(resolve, 1500))
-
-    const outcomes: ResultStatus[] = ["ACCEPTED", "WRONG_ANSWER", "RUNTIME_ERROR"]
-    const randomOutcome = outcomes[Math.floor(Math.random() * outcomes.length)] as ResultStatus
-
-    setResult({
-      status: randomOutcome,
-      runtime: randomOutcome === "ACCEPTED" ? "52ms" : undefined,
-      memory: randomOutcome === "ACCEPTED" ? "14.2 MB" : undefined,
-      output: randomOutcome === "WRONG_ANSWER" ? "[0, 2]" : undefined,
-      expected: randomOutcome === "WRONG_ANSWER" ? "[0, 1]" : undefined,
-      error:
-        randomOutcome === "RUNTIME_ERROR"
-          ? "TypeError: Cannot read property 'length' of undefined\n    at solution (line 5)"
-          : undefined,
-      testCasesPassed: randomOutcome === "ACCEPTED" ? 3 : 1,
-      totalTestCases: 3,
-    })
-    setResultOpen(true)
-    setIsRunning(false)
-  }
-
-  const handleSubmit = async (code: string, language: string) => {
-    setIsSubmitting(true)
-    setResultOpen(false)
-    await new Promise((resolve) => setTimeout(resolve, 2000))
-
-    const isAccepted = Math.random() > 0.3
-
-    setResult({
-      status: isAccepted ? "ACCEPTED" : "WRONG_ANSWER",
-      runtime: isAccepted ? "48ms" : undefined,
-      memory: isAccepted ? "13.8 MB" : undefined,
-      output: !isAccepted ? "[1, 3]" : undefined,
-      expected: !isAccepted ? "[0, 1]" : undefined,
-      testCasesPassed: isAccepted ? 52 : 45,
-      totalTestCases: 52,
-    })
-    setResultOpen(true)
-    setIsSubmitting(false)
-  }
-
   return (
     <div className="flex h-screen flex-col bg-background">
-      {!isFullscreen && <Navbar user={mockUser} />}
+      {!isFullscreen && <Navbar />}
+      {!isFullscreen && <div className="h-20" />}
 
       {/* Workspace Header */}
       <div className="flex items-center justify-between border-b border-border/50 bg-card/30 px-4 py-2">
@@ -152,13 +182,19 @@ export default function ProblemWorkspace() {
       <div className="relative flex flex-1 overflow-hidden">
         {/* Problem Panel */}
         <div className="overflow-hidden" style={{ width: `${splitPosition}%` }}>
-          <ProblemPanel problem={problem} submissions={problemSubmissions} />
+          <ProblemPanel
+            problem={problem}
+            submissions={mySubmissions}
+            submissionsLoading={submissionsLoading}
+            isLoggedIn={!!token}
+          />
         </div>
 
         {/* Resize Handle */}
         <div
           className="group relative w-1 cursor-col-resize bg-border/30 transition-colors hover:bg-primary"
           onMouseDown={(e) => {
+            e.preventDefault()
             const startX = e.clientX
             const startPosition = splitPosition
 
@@ -183,21 +219,20 @@ export default function ProblemWorkspace() {
 
         {/* Code Editor */}
         <div className="relative overflow-hidden" style={{ width: `${100 - splitPosition}%` }}>
-          <CodeEditor onRun={handleRun} onSubmit={handleSubmit} isRunning={isRunning} isSubmitting={isSubmitting} />
+          <CodeEditor
+            code={code}
+            language={language}
+            onCodeChange={(next) => setCode(slug, next)}
+            onLanguageChange={setLanguage}
+            onReset={() => resetCode(slug)}
+            onRun={handleRun}
+            onSubmit={handleSubmit}
+            isRunning={isRunning}
+            isSubmitting={isSubmitting}
+          />
 
           {/* Result Drawer */}
-          <ResultDrawer
-            isOpen={resultOpen}
-            onClose={() => setResultOpen(false)}
-            status={result.status}
-            runtime={result.runtime}
-            memory={result.memory}
-            output={result.output}
-            expected={result.expected}
-            error={result.error}
-            testCasesPassed={result.testCasesPassed}
-            totalTestCases={result.totalTestCases}
-          />
+          <ResultDrawer isOpen={resultOpen} onClose={closeResult} result={result} />
         </div>
       </div>
     </div>

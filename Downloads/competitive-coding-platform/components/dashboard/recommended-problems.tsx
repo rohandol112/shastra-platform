@@ -1,10 +1,10 @@
 import Link from "next/link"
 import { cn } from "@/lib/utils"
-import type { Problem } from "@/lib/mock-data"
+import type { ProblemListItem } from "@/lib/api"
 import { ArrowRight } from "lucide-react"
 
 interface RecommendedProblemsProps {
-  problems: Problem[]
+  problems: ProblemListItem[]
 }
 
 export function RecommendedProblems({ problems }: RecommendedProblemsProps) {

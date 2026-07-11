@@ -27,10 +27,10 @@ export function Footer() {
 
           {/* Quick Links */}
           <div className="flex items-center gap-6 text-sm">
-            <Link href="#contact" className="text-muted-foreground transition-colors hover:text-foreground">
+            <Link href="/#contact" className="text-muted-foreground transition-colors hover:text-foreground">
               Contact
             </Link>
-            <Link href="#faq" className="text-muted-foreground transition-colors hover:text-foreground">
+            <Link href="/#faq" className="text-muted-foreground transition-colors hover:text-foreground">
               FAQ
             </Link>
           </div>
