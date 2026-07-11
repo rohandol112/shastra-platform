@@ -1,52 +1,169 @@
 "use client"
 
-import { useState } from "react"
-import { useParams } from "next/navigation"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { LiveTimer } from "@/components/contest/live-timer"
 import { MiniLeaderboard } from "@/components/contest/mini-leaderboard"
 import { ProblemPanel } from "@/components/workspace/problem-panel"
 import { CodeEditor } from "@/components/workspace/code-editor"
-import { ResultDrawer, type ResultStatus } from "@/components/workspace/result-drawer"
-import { mockProblems, mockContests, mockLeaderboard, mockSubmissions } from "@/lib/mock-data"
-import { ArrowLeft, AlertTriangle, Check, Trophy, Clock } from "lucide-react"
+import { ResultDrawer } from "@/components/workspace/result-drawer"
+import { ArrowLeft, AlertTriangle, Check, Trophy, Clock, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
-
-const contestProblems = mockProblems.slice(0, 4).map((p, index) => ({
-  ...p,
-  id: `contest-prob-${index}`,
-  label: String.fromCharCode(65 + index),
-  points: (index + 1) * 100,
-  bonus: index === 0 ? 20 : 0,
-}))
+import { useContestStore } from "@/lib/stores/contest-store"
+import { useWorkspaceStore } from "@/lib/stores/workspace-store"
+import { useAuthStore } from "@/lib/stores/auth-store"
+import { problemsApi, submissionsApi, type ProblemDetail, type SubmissionSummary } from "@/lib/api"
 
 export default function ContestArena() {
   const params = useParams()
+  const router = useRouter()
   const slug = params.slug as string
 
-  const [activeProblem, setActiveProblem] = useState(contestProblems[0])
-  const [isRunning, setIsRunning] = useState(false)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [resultOpen, setResultOpen] = useState(false)
-  const [result, setResult] = useState<{
-    status: ResultStatus
-    runtime?: string
-    memory?: string
-    output?: string
-    expected?: string
-    error?: string
-    testCasesPassed?: number
-    totalTestCases?: number
-  }>({ status: null })
-  const [splitPosition, setSplitPosition] = useState(45)
+  const { detail: contest, detailLoading, detailError, fetchContest, leaderboard, fetchLeaderboard } =
+    useContestStore()
+  const token = useAuthStore((s) => s.token)
+  const user = useAuthStore((s) => s.user)
+  const hydrated = useAuthStore((s) => s.hydrated)
+
+  const {
+    language,
+    isRunning,
+    isSubmitting,
+    result,
+    resultOpen,
+    setLanguage,
+    getCode,
+    setCode,
+    resetCode,
+    runCode,
+    submitCode,
+    closeResult,
+  } = useWorkspaceStore()
+
+  const [activeSlug, setActiveSlug] = useState<string | null>(null)
+  const [problemCache, setProblemCache] = useState<Record<string, ProblemDetail>>({})
+  const [problemLoading, setProblemLoading] = useState(false)
   const [solvedProblems, setSolvedProblems] = useState<Set<string>>(new Set())
+  const [mySubmissions, setMySubmissions] = useState<SubmissionSummary[]>([])
+  const [splitPosition, setSplitPosition] = useState(45)
 
-  const contest = mockContests.find((c) => c.slug === slug)
-  const isContestRunning = contest?.status === "RUNNING"
+  const drafts = useWorkspaceStore((s) => s.drafts)
+  void drafts
 
-  if (!contest) {
+  // Load contest
+  useEffect(() => {
+    if (hydrated) fetchContest(slug)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slug, hydrated, token])
+
+  const contestProblems = useMemo(
+    () => (contest?.problems ?? []).slice().sort((a, b) => a.orderIndex - b.orderIndex),
+    [contest]
+  )
+
+  // Pick the first problem once the contest arrives
+  useEffect(() => {
+    if (!activeSlug && contestProblems.length > 0) {
+      setActiveSlug(contestProblems[0].slug)
+    }
+  }, [contestProblems, activeSlug])
+
+  // Fetch active problem details (cached)
+  useEffect(() => {
+    if (!activeSlug || problemCache[activeSlug]) return
+    setProblemLoading(true)
+    problemsApi
+      .bySlug(activeSlug)
+      .then((detail) => setProblemCache((prev) => ({ ...prev, [activeSlug]: detail })))
+      .catch(() => toast.error("Failed to load problem"))
+      .finally(() => setProblemLoading(false))
+  }, [activeSlug, problemCache])
+
+  // Poll leaderboard while the contest is running
+  useEffect(() => {
+    if (!contest?.id || contest.status !== "RUNNING") return
+    fetchLeaderboard(contest.id)
+    const interval = setInterval(() => fetchLeaderboard(contest.id), 30_000)
+    return () => clearInterval(interval)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contest?.id, contest?.status])
+
+  // Load my contest submissions (to mark solved problems)
+  const loadMySubmissions = useCallback(async () => {
+    if (!token || !contest?.id) return
+    try {
+      const data = await submissionsApi.my({ contestId: contest.id, limit: 100 })
+      setMySubmissions(data.submissions)
+      const solved = new Set<string>()
+      data.submissions.forEach((s) => {
+        if (s.status === "ACCEPTED" && s.problem?.slug) solved.add(s.problem.slug)
+      })
+      setSolvedProblems(solved)
+    } catch {
+      // non-critical
+    }
+  }, [token, contest?.id])
+
+  useEffect(() => {
+    loadMySubmissions()
+  }, [loadMySubmissions])
+
+  const activeProblem = activeSlug ? problemCache[activeSlug] : null
+  const activeContestProblem = contestProblems.find((p) => p.slug === activeSlug)
+
+  const handleRun = async () => {
+    if (!token) {
+      toast.error("Please sign in first")
+      router.push(`/login?redirect=/contests/${slug}/arena`)
+      return
+    }
+    if (!activeProblem || !activeSlug) return
+    const stdin = activeProblem.sampleTestCases[0]?.input ?? ""
+    await runCode(activeSlug, stdin)
+  }
+
+  const handleSubmit = async () => {
+    if (!token) {
+      toast.error("Please sign in first")
+      router.push(`/login?redirect=/contests/${slug}/arena`)
+      return
+    }
+    if (!activeProblem || !activeSlug || !contest) return
+    const verdict = await submitCode(activeSlug, activeProblem.id, contest.id)
+    if (verdict) {
+      if (verdict.status === "ACCEPTED") {
+        setSolvedProblems((prev) => new Set(prev).add(activeSlug))
+        toast.success(`${activeContestProblem?.title ?? "Problem"} accepted! 🎉`)
+        fetchLeaderboard(contest.id)
+      }
+      loadMySubmissions()
+    }
+  }
+
+  if (!hydrated || detailLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  if (detailError || !contest) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-background">
         <div className="text-center">
@@ -60,7 +177,7 @@ export default function ContestArena() {
     )
   }
 
-  if (!isContestRunning) {
+  if (contest.status !== "RUNNING") {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-background">
         <div className="text-center">
@@ -68,72 +185,99 @@ export default function ContestArena() {
             <AlertTriangle className="h-10 w-10 text-warning" />
           </div>
           <h1 className="text-2xl font-bold text-foreground">Contest Not Active</h1>
-          <p className="mt-2 text-muted-foreground">This contest is not currently running</p>
-          <Link href="/contests" className="mt-6 inline-block">
-            <Button>Back to Contests</Button>
-          </Link>
+          <p className="mt-2 text-muted-foreground">
+            {contest.status === "ENDED"
+              ? "This contest has ended."
+              : `This contest is scheduled to start ${new Date(contest.startTime).toLocaleString()}`}
+          </p>
+          <div className="mt-6 flex justify-center gap-3">
+            <Link href="/contests">
+              <Button variant="outline" className="bg-transparent">
+                Back to Contests
+              </Button>
+            </Link>
+            {contest.status === "ENDED" && (
+              <Link href={`/contests/${slug}/results`}>
+                <Button>View Results</Button>
+              </Link>
+            )}
+          </div>
         </div>
       </div>
     )
   }
 
-  const handleRun = async (code: string, language: string) => {
-    setIsRunning(true)
-    setResultOpen(false)
-    await new Promise((resolve) => setTimeout(resolve, 1500))
-
-    const outcomes: ResultStatus[] = ["ACCEPTED", "WRONG_ANSWER", "RUNTIME_ERROR"]
-    const randomOutcome = outcomes[Math.floor(Math.random() * outcomes.length)] as ResultStatus
-
-    setResult({
-      status: randomOutcome,
-      runtime: randomOutcome === "ACCEPTED" ? "52ms" : undefined,
-      memory: randomOutcome === "ACCEPTED" ? "14.2 MB" : undefined,
-      output: randomOutcome === "WRONG_ANSWER" ? "[0, 2]" : undefined,
-      expected: randomOutcome === "WRONG_ANSWER" ? "[0, 1]" : undefined,
-      error: randomOutcome === "RUNTIME_ERROR" ? "TypeError: Cannot read property 'length' of undefined" : undefined,
-      testCasesPassed: randomOutcome === "ACCEPTED" ? 3 : 1,
-      totalTestCases: 3,
-    })
-    setResultOpen(true)
-    setIsRunning(false)
+  if (token && !contest.isRegistered) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-warning/10 mx-auto">
+            <Trophy className="h-10 w-10 text-warning" />
+          </div>
+          <h1 className="text-2xl font-bold text-foreground">You're not registered</h1>
+          <p className="mt-2 text-muted-foreground">Register for this contest to enter the arena.</p>
+          <div className="mt-6 flex justify-center gap-3">
+            <Link href="/contests">
+              <Button variant="outline" className="bg-transparent">
+                Back to Contests
+              </Button>
+            </Link>
+            <Button
+              onClick={async () => {
+                try {
+                  await useContestStore.getState().register(contest.id)
+                  toast.success("Registered! Good luck 🍀")
+                } catch (err) {
+                  toast.error(err instanceof Error ? err.message : "Registration failed")
+                }
+              }}
+            >
+              Register Now
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
   }
 
-  const handleSubmit = async (code: string, language: string) => {
-    setIsSubmitting(true)
-    setResultOpen(false)
-    await new Promise((resolve) => setTimeout(resolve, 2000))
-
-    const isAccepted = Math.random() > 0.3
-
-    if (isAccepted && activeProblem) {
-      setSolvedProblems((prev) => new Set(prev).add(activeProblem.id))
-    }
-
-    setResult({
-      status: isAccepted ? "ACCEPTED" : "WRONG_ANSWER",
-      runtime: isAccepted ? "48ms" : undefined,
-      memory: isAccepted ? "13.8 MB" : undefined,
-      output: !isAccepted ? "[1, 3]" : undefined,
-      expected: !isAccepted ? "[0, 1]" : undefined,
-      testCasesPassed: isAccepted ? 52 : 45,
-      totalTestCases: 52,
-    })
-    setResultOpen(true)
-    setIsSubmitting(false)
-  }
+  const currentLeaderboardEntries = leaderboard.map((entry) => ({
+    rank: entry.rank,
+    userId: entry.user.id,
+    username: entry.user.username,
+    score: entry.score,
+    problemsSolved: entry.problemsSolved,
+    totalTime: "",
+  }))
 
   return (
     <div className="flex h-screen flex-col bg-background">
       {/* Contest Header */}
       <header className="flex items-center justify-between border-b border-border/50 bg-card/50 px-4 py-2">
         <div className="flex items-center gap-4">
-          <Link href="/contests">
-            <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              <span className="hidden sm:inline">Exit</span>
-            </Button>
-          </Link>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                <span className="hidden sm:inline">Exit</span>
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Are you sure you want to exit?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  You only get 1 attempt for this contest. If you exit now, your current progress will be submitted and you won't be able to resume later.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <Link href="/contests">
+                  <AlertDialogAction className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
+                    Exit & Submit
+                  </AlertDialogAction>
+                </Link>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
           <div className="h-5 w-px bg-border/50" />
           <div className="flex items-center gap-2">
             <Trophy className="h-4 w-4 text-warning" />
@@ -157,14 +301,15 @@ export default function ContestArena() {
       {/* Problem Tabs */}
       <div className="border-b border-border/50 bg-card/30 px-4">
         <div className="flex gap-1 overflow-x-auto py-2">
-          {contestProblems.map((problem) => {
-            const isSolved = solvedProblems.has(problem.id)
-            const isActive = activeProblem?.id === problem.id
+          {contestProblems.map((problem, index) => {
+            const isSolved = solvedProblems.has(problem.slug)
+            const isActive = activeSlug === problem.slug
+            const label = String.fromCharCode(65 + index)
 
             return (
               <button
-                key={problem.id}
-                onClick={() => setActiveProblem(problem)}
+                key={problem.problemId}
+                onClick={() => setActiveSlug(problem.slug)}
                 className={cn(
                   "flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-all",
                   isActive
@@ -175,7 +320,7 @@ export default function ContestArena() {
                 )}
               >
                 <span className="flex h-6 w-6 items-center justify-center rounded-md bg-background/20 text-xs font-bold">
-                  {problem.label}
+                  {label}
                 </span>
                 <span className="hidden sm:inline">{problem.title}</span>
                 <Badge
@@ -198,10 +343,15 @@ export default function ContestArena() {
       <div className="relative flex flex-1 overflow-hidden">
         {/* Problem Panel */}
         <div className="overflow-hidden" style={{ width: `${splitPosition}%` }}>
-          {activeProblem && (
+          {problemLoading || !activeProblem ? (
+            <div className="flex h-full items-center justify-center">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
             <ProblemPanel
               problem={activeProblem}
-              submissions={mockSubmissions.filter((s) => s.problemId === activeProblem.id)}
+              submissions={mySubmissions.filter((s) => s.problem?.slug === activeSlug)}
+              isLoggedIn={!!token}
             />
           )}
         </div>
@@ -210,6 +360,7 @@ export default function ContestArena() {
         <div
           className="group relative w-1 cursor-col-resize bg-border/30 transition-colors hover:bg-primary"
           onMouseDown={(e) => {
+            e.preventDefault()
             const startX = e.clientX
             const startPosition = splitPosition
 
@@ -232,24 +383,25 @@ export default function ContestArena() {
 
         {/* Code Editor */}
         <div className="relative overflow-hidden" style={{ width: `${100 - splitPosition}%` }}>
-          <CodeEditor onRun={handleRun} onSubmit={handleSubmit} isRunning={isRunning} isSubmitting={isSubmitting} />
-
-          <ResultDrawer
-            isOpen={resultOpen}
-            onClose={() => setResultOpen(false)}
-            status={result.status}
-            runtime={result.runtime}
-            memory={result.memory}
-            output={result.output}
-            expected={result.expected}
-            error={result.error}
-            testCasesPassed={result.testCasesPassed}
-            totalTestCases={result.totalTestCases}
+          <CodeEditor
+            code={activeSlug ? getCode(activeSlug) : ""}
+            language={language}
+            onCodeChange={(next) => activeSlug && setCode(activeSlug, next)}
+            onLanguageChange={setLanguage}
+            onReset={() => activeSlug && resetCode(activeSlug)}
+            onRun={handleRun}
+            onSubmit={handleSubmit}
+            isRunning={isRunning}
+            isSubmitting={isSubmitting}
           />
+
+          <ResultDrawer isOpen={resultOpen} onClose={closeResult} result={result} />
         </div>
 
         {/* Mini Leaderboard */}
-        <MiniLeaderboard entries={mockLeaderboard} currentUserId="u5" />
+        {currentLeaderboardEntries.length > 0 && (
+          <MiniLeaderboard entries={currentLeaderboardEntries} currentUserId={user?.id} />
+        )}
       </div>
     </div>
   )
