@@ -839,6 +839,10 @@ export const collegesApi = {
     return request<College>("/dashboard/colleges", { method: "POST", body: data })
   },
 
+  createStaff(collegeId: string, data: any) {
+    return request(`/dashboard/colleges/${collegeId}/staff`, { method: "POST", body: data })
+  },
+
   list() {
     return request<{ colleges: College[] }>("/dashboard/colleges")
   },

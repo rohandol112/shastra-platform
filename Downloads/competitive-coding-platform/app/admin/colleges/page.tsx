@@ -9,6 +9,14 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { AdminGuard } from "@/components/admin-guard"
 import { collegesApi, type College } from "@/lib/api"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 import { Loader2, Plus, Building2, Activity, Users } from "lucide-react"
 
 export default function CollegesPage() {
@@ -138,12 +146,15 @@ function CollegesList() {
       {colleges.map((college) => (
         <Card key={college.id} className="border-border/50 bg-card/50 transition-colors hover:bg-card">
           <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex justify-between items-start">
-              <span className="truncate pr-4">{college.name}</span>
-              <span className="shrink-0 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
-                {college.code}
-              </span>
-            </CardTitle>
+            <div className="flex justify-between items-start gap-4">
+              <CardTitle className="text-lg">
+                <span className="truncate block">{college.name}</span>
+                <span className="mt-1 inline-block shrink-0 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
+                  {college.code}
+                </span>
+              </CardTitle>
+              <AddStaffDialog collegeId={college.id} collegeName={college.name} />
+            </div>
           </CardHeader>
           <CardContent>
             <div className="mt-4 flex gap-4 text-sm text-muted-foreground">
@@ -165,3 +176,84 @@ function CollegesList() {
     </div>
   )
 }
+
+function AddStaffDialog({ collegeId, collegeName }: { collegeId: string; collegeName: string }) {
+  const [open, setOpen] = useState(false)
+  const [firstName, setFirstName] = useState("")
+  const [lastName, setLastName] = useState("")
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [role, setRole] = useState("TEACHER")
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsSubmitting(true)
+    try {
+      await collegesApi.createStaff(collegeId, { firstName, lastName, email, password, role })
+      toast.success(`${role.replace("_", " ")} account created successfully`)
+      setOpen(false)
+      setFirstName("")
+      setLastName("")
+      setEmail("")
+      setPassword("")
+    } catch (err: any) {
+      toast.error(err.message || "Failed to create staff account")
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm">Add Staff</Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Add Staff to {collegeName}</DialogTitle>
+          <DialogDescription>
+            Create a teacher or admin account for this college.
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4 pt-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="firstName">First Name</Label>
+              <Input id="firstName" value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="lastName">Last Name</Label>
+              <Input id="lastName" value={lastName} onChange={(e) => setLastName(e.target.value)} />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
+            <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="password">Password</Label>
+            <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="role">Role</Label>
+            <select
+              id="role"
+              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              value={role}
+              onChange={(e) => setRole(e.target.value)}
+            >
+              <option value="TEACHER">Teacher</option>
+              <option value="COLLEGE_ADMIN">College Admin</option>
+            </select>
+          </div>
+          <Button type="submit" className="w-full" disabled={isSubmitting}>
+            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Create Account
+          </Button>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
