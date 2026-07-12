@@ -20,6 +20,7 @@ import {
   Building2,
 } from "lucide-react"
 import { adminApi, API_ORIGIN, type AdminAnalytics } from "@/lib/api"
+import { useAuthStore } from "@/lib/stores/auth-store"
 
 export default function AdminDashboardPage() {
   return (
