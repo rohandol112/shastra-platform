@@ -135,8 +135,6 @@ function AdminDashboard() {
               <p className="mt-1 text-sm text-muted-foreground">{error}</p>
             </div>
           </div>
-            </div>
-          </div>
         ) : (isSuperAdmin ? (
           <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {stats.map((stat) => {
