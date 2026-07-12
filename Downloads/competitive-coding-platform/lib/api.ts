@@ -364,6 +364,55 @@ export interface AdminTestCase {
   orderIndex: number
 }
 
+export interface AdminSubmissionUser {
+  id: string
+  email: string | null
+  username: string
+  firstName: string | null
+  lastName: string | null
+}
+
+export interface AdminSubmissionProblem {
+  id: string
+  title: string
+  slug: string
+  difficulty: Difficulty
+  timeLimit?: number
+  memoryLimit?: number
+}
+
+export interface TestCaseResult {
+  testCaseId: string
+  status: string
+  time: number
+  memory: number
+  points: number
+}
+
+export interface AdminSubmissionListItem {
+  id: string
+  userId: string
+  problemId: string
+  contestId: string | null
+  language: string
+  status: SubmissionStatus
+  score: number | null
+  time: number | null
+  memory: number | null
+  createdAt: string
+  judgedAt: string | null
+  user: AdminSubmissionUser
+  problem: AdminSubmissionProblem
+}
+
+export interface AdminSubmissionDetail extends AdminSubmissionListItem {
+  code: string
+  stdout: string | null
+  stderr: string | null
+  compileOutput: string | null
+  testCaseResults: TestCaseResult[] | null
+}
+
 // ---------- Core fetch helper ----------
 
 let authToken: string | null = null
@@ -834,6 +883,41 @@ export const adminApi = {
     return request<{ id: string; status: ContestStatus }>(`/dashboard/contests/${contestId}/status`, {
       method: "PATCH",
       body: { status },
+    })
+  },
+
+  // Submissions
+  submissions(params: {
+    page?: number
+    limit?: number
+    problemId?: string
+    contestId?: string
+    userId?: string
+    status?: SubmissionStatus
+    language?: string
+    startDate?: string
+    endDate?: string
+    sortBy?: string
+    sortOrder?: "asc" | "desc"
+  } = {}) {
+    // Backend returns { submissions, total, page, totalPages } flat — not nested `pagination`.
+    return request<{ submissions: AdminSubmissionListItem[]; total: number; page: number; totalPages: number }>(
+      "/dashboard/submissions",
+      { query: params }
+    )
+  },
+
+  submission(submissionId: string) {
+    return request<AdminSubmissionDetail>(`/dashboard/submissions/${submissionId}`)
+  },
+
+  deleteSubmission(submissionId: string) {
+    return request<void>(`/dashboard/submissions/${submissionId}`, { method: "DELETE" })
+  },
+
+  rejudgeSubmission(submissionId: string) {
+    return request<{ id: string; status: string }>(`/dashboard/submissions/${submissionId}/rejudge`, {
+      method: "POST",
     })
   },
 }

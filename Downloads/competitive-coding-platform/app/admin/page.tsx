@@ -299,6 +299,7 @@ function AdminDashboard() {
             { label: "Manage Students", href: "/admin/students", icon: Users },
             { label: "Problem CMS", href: "/admin/problems", icon: Code2 },
             { label: "Contests", href: "/admin/contests", icon: Trophy },
+            { label: "Submissions", href: "/admin/submissions", icon: FileCode2 },
             { label: "Plagiarism Center", href: "/admin/plagiarism", icon: AlertTriangle },
           ]
           .filter((action) => !action.adminOnly || isSuperAdmin)
