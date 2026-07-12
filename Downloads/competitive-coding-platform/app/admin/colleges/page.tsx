@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import Link from "next/link"
 import { toast } from "sonner"
 import { Navbar } from "@/components/ui/navbar"
 import { Button } from "@/components/ui/button"
@@ -153,7 +154,15 @@ function CollegesList() {
                   {college.code}
                 </span>
               </CardTitle>
-              <AddStaffDialog collegeId={college.id} collegeName={college.name} />
+              <div className="flex items-center gap-2">
+                <Link href={`/admin/students?collegeId=${college.id}`}>
+                  <Button variant="outline" size="sm">
+                    <Users className="mr-2 h-4 w-4" />
+                    Manage Students
+                  </Button>
+                </Link>
+                <AddStaffDialog collegeId={college.id} collegeName={college.name} />
+              </div>
             </div>
           </CardHeader>
           <CardContent>

@@ -710,6 +710,10 @@ export const adminApi = {
     return request<void>(`/dashboard/users/${userId}`, { method: "DELETE" })
   },
 
+  resetPassword(userId: string, password: string) {
+    return request<void>(`/dashboard/users/${userId}/password`, { method: "PATCH", body: { password } })
+  },
+
   // Problems
   async problems(params: {
     page?: number

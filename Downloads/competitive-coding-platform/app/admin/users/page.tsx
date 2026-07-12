@@ -5,6 +5,7 @@ import { toast } from "sonner"
 import { Navbar } from "@/components/ui/navbar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { AdminGuard } from "@/components/admin-guard"
 import {
@@ -22,12 +23,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Search, MoreVertical, Shield, Ban, Users, TrendingUp, AlertTriangle, CheckCircle2, Trash2, Loader2 } from "lucide-react"
+import { Search, MoreVertical, Shield, Ban, Users, TrendingUp, AlertTriangle, CheckCircle2, Trash2, Loader2, KeyRound } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { adminApi, ApiError, displayName, type AdminUser } from "@/lib/api"
 import { useAuthStore } from "@/lib/stores/auth-store"
 
-type DialogAction = "deactivate" | "activate" | "promote" | "demote" | "delete" | null
+type DialogAction = "deactivate" | "activate" | "promote" | "demote" | "delete" | "reset_password" | null
 
 export default function AdminUsersPageWrapper() {
   return (
@@ -48,6 +49,7 @@ function AdminUsersPage() {
     type: null,
     user: null,
   })
+  const [newPassword, setNewPassword] = useState("")
 
   const loadUsers = async (searchTerm = search) => {
     setLoading(true)
@@ -77,7 +79,10 @@ function AdminUsersPage() {
   const adminCount = users.filter((u) => u.role === "ADMIN" || u.role === "MODERATOR").length
   const activeCount = users.filter((u) => u.isActive).length
 
-  const closeDialog = () => setActionDialog({ type: null, user: null })
+  const closeDialog = () => {
+    setActionDialog({ type: null, user: null })
+    setNewPassword("")
+  }
 
   const performAction = async () => {
     const { type, user } = actionDialog
@@ -104,6 +109,14 @@ function AdminUsersPage() {
         await adminApi.deleteUser(user.id)
         setUsers((prev) => prev.filter((u) => u.id !== user.id))
         toast.success(`${user.username} deleted`)
+      } else if (type === "reset_password") {
+        if (!newPassword || newPassword.length < 6) {
+          toast.error("Password must be at least 6 characters")
+          setBusy(false)
+          return
+        }
+        await adminApi.resetPassword(user.id, newPassword)
+        toast.success(`Password reset for ${user.username}`)
       }
       closeDialog()
     } catch (err) {
@@ -141,6 +154,11 @@ function AdminUsersPage() {
       description: (u) => `This permanently deletes ${u.username} and all their submissions. This cannot be undone.`,
       cta: "Delete Permanently",
       destructive: true,
+    },
+    reset_password: {
+      title: "Reset Password",
+      description: (u) => `Enter a new password for ${u.username}. They can use this to sign in immediately.`,
+      cta: "Reset Password",
     },
   }
 
@@ -291,6 +309,13 @@ function AdminUsersPage() {
                                 )}
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
+                                  onClick={() => setActionDialog({ type: "reset_password", user })}
+                                >
+                                  <KeyRound className="mr-2 h-4 w-4" />
+                                  Reset Password
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
                                   className="text-red-400 focus:text-red-400"
                                   onClick={() => setActionDialog({ type: "delete", user })}
                                 >
@@ -336,6 +361,19 @@ function AdminUsersPage() {
                   {dialogCopy[actionDialog.type].description(actionDialog.user)}
                 </DialogDescription>
               </DialogHeader>
+              {actionDialog.type === "reset_password" && (
+                <div className="py-4">
+                  <Label htmlFor="new-password">New Password</Label>
+                  <Input
+                    id="new-password"
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Enter new password (min 6 chars)"
+                    className="mt-1"
+                  />
+                </div>
+              )}
               <DialogFooter className="gap-2 sm:gap-0">
                 <Button variant="outline" onClick={closeDialog} disabled={busy}>
                   Cancel
