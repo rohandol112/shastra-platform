@@ -8,6 +8,7 @@ import { DifficultyBadge } from "@/components/ui/difficulty-badge"
 import { Copy, Check, Lock, Lightbulb, FileText, History, Sparkles, Clock, HardDrive } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { formatRuntime, formatMemory, type ProblemDetail, type SubmissionSummary } from "@/lib/api"
+import DOMPurify from "dompurify"
 
 interface ProblemPanelProps {
   problem: ProblemDetail
@@ -35,10 +36,8 @@ export function ProblemPanel({ problem, submissions, submissionsLoading, isLogge
     .map((h) => h.trim())
     .filter(Boolean)
 
-  const constraints = (problem.constraints ?? "")
-    .split("\n")
-    .map((c) => c.trim())
-    .filter(Boolean)
+  const rawConstraints = problem.constraints ?? ""
+  const sanitizedConstraints = DOMPurify.sanitize(rawConstraints)
 
   return (
     <div className="flex h-full flex-col overflow-hidden bg-background">
@@ -114,7 +113,10 @@ export function ProblemPanel({ problem, submissions, submissionsLoading, isLogge
 
             {/* Statement */}
             <div className="prose prose-invert max-w-none">
-              <div className="whitespace-pre-wrap leading-relaxed text-foreground/90">{problem.statement}</div>
+              <div 
+                className="whitespace-pre-wrap leading-relaxed text-foreground/90"
+                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(problem.statement) }}
+              />
             </div>
 
             {/* Input / Output format */}
@@ -170,7 +172,7 @@ export function ProblemPanel({ problem, submissions, submissionsLoading, isLogge
             )}
 
             {/* Constraints */}
-            {constraints.length > 0 && (
+            {sanitizedConstraints && (
               <div className="mt-8">
                 <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
                   <span className="flex h-6 w-6 items-center justify-center rounded bg-red-500/20 text-xs text-red-400">
@@ -178,14 +180,10 @@ export function ProblemPanel({ problem, submissions, submissionsLoading, isLogge
                   </span>
                   Constraints
                 </h3>
-                <ul className="space-y-2">
-                  {constraints.map((constraint, index) => (
-                    <li key={index} className="flex items-start gap-2 text-muted-foreground">
-                      <span className="mt-2 h-1.5 w-1.5 rounded-full bg-muted-foreground/50" />
-                      <code className="rounded bg-card px-2 py-1 font-mono text-sm text-foreground">{constraint}</code>
-                    </li>
-                  ))}
-                </ul>
+                <div 
+                  className="prose prose-invert text-muted-foreground prose-li:my-1"
+                  dangerouslySetInnerHTML={{ __html: sanitizedConstraints }}
+                />
               </div>
             )}
           </div>
