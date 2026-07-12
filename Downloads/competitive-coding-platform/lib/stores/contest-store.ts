@@ -105,6 +105,14 @@ export const useContestStore = create<ContestState>((set, get) => ({
     }
   },
 
+  async finishContest(contestId) {
+    try {
+      await contestsApi.finish(contestId);
+    } catch (err) {
+      console.error('Failed to finish contest:', err);
+    }
+  },
+
   async unregister(contestId) {
     set({ registering: contestId })
     try {

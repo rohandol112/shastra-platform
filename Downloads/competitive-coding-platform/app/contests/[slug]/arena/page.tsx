@@ -215,6 +215,32 @@ export default function ContestArena() {
     )
   }
 
+  if (token && contest.isFinished) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-success/10 mx-auto">
+            <Trophy className="h-10 w-10 text-success" />
+          </div>
+          <h1 className="text-2xl font-bold text-foreground">You've finished this contest!</h1>
+          <p className="mt-2 text-muted-foreground">Your attempt has been submitted. You can check the leaderboard or head back.</p>
+          <div className="mt-6 flex justify-center gap-3">
+            <Link href="/contests">
+              <Button variant="outline" className="bg-transparent">
+                Back to Contests
+              </Button>
+            </Link>
+            <Link href={`/contests//leaderboard`}>
+              <Button>
+                View Leaderboard
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   if (token && !contest.isRegistered) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-background">
@@ -278,11 +304,9 @@ export default function ContestArena() {
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <Link href="/contests">
-                  <AlertDialogAction className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
+                <AlertDialogAction className="bg-destructive hover:bg-destructive/90 text-destructive-foreground" onClick={() => { useContestStore.getState().finishContest(contest.id); router.push('/contests'); }}>
                     Exit & Submit
                   </AlertDialogAction>
-                </Link>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
