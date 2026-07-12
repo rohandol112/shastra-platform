@@ -52,6 +52,7 @@ export default function ContestArena() {
     setCode,
     resetCode,
     runCode,
+    runSamples,
     submitCode,
     closeResult,
   } = useWorkspaceStore()
@@ -135,8 +136,13 @@ export default function ContestArena() {
       return
     }
     if (!activeProblem || !activeSlug) return
-    const stdin = customStdin ?? activeProblem.sampleTestCases[0]?.input ?? ""
-    await runCode(activeSlug, stdin)
+    // No custom input → run all visible sample cases with pass/fail; custom
+    // input → single run against that stdin. Hidden cases are never involved.
+    if (customStdin === undefined) {
+      await runSamples(activeSlug, activeProblem.id)
+    } else {
+      await runCode(activeSlug, customStdin)
+    }
   }
 
   const handleSubmit = async () => {

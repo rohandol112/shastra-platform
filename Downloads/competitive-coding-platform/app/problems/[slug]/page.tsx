@@ -36,6 +36,7 @@ export default function ProblemWorkspace() {
     setCode,
     resetCode,
     runCode,
+    runSamples,
     submitCode,
     closeResult,
   } = useWorkspaceStore()
@@ -84,9 +85,13 @@ export default function ProblemWorkspace() {
 
   const handleRun = async (customStdin?: string) => {
     if (!requireAuth() || !problem) return
-    // Custom input wins; otherwise use the first visible sample test case
-    const stdin = customStdin ?? problem.sampleTestCases[0]?.input ?? ""
-    await runCode(slug, stdin)
+    // No custom input → run against ALL visible sample cases with pass/fail.
+    // Custom input → single run against exactly that stdin.
+    if (customStdin === undefined) {
+      await runSamples(slug, problem.id)
+    } else {
+      await runCode(slug, customStdin)
+    }
   }
 
   const handleSubmit = async () => {

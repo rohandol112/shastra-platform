@@ -7,6 +7,8 @@ import {
   ApiError,
   type SubmissionDetail,
   type RunResult,
+  type SampleRunResult,
+  type SampleCaseResult,
   type SubmissionStatus,
 } from "@/lib/api"
 
@@ -49,7 +51,7 @@ export const LANGUAGES = [
 ] as const
 
 export type WorkspaceResult = {
-  kind: "run" | "submit"
+  kind: "run" | "submit" | "samples"
   status: SubmissionStatus | string
   runtime?: string
   memory?: string
@@ -59,6 +61,8 @@ export type WorkspaceResult = {
   score?: number | null
   testCasesPassed?: number
   totalTestCases?: number
+  /** Per-case breakdown for a "Run against samples" execution. */
+  cases?: SampleCaseResult[]
 }
 
 interface WorkspaceState {
@@ -77,6 +81,7 @@ interface WorkspaceState {
   resetCode: (problemSlug: string) => void
 
   runCode: (problemSlug: string, stdin: string) => Promise<void>
+  runSamples: (problemSlug: string, problemId: string) => Promise<void>
   submitCode: (problemSlug: string, problemId: string, contestId?: string | null) => Promise<SubmissionDetail | null>
   closeResult: () => void
 }
@@ -155,6 +160,42 @@ export const useWorkspaceStore = create<WorkspaceState>()(
             resultOpen: true,
             result: {
               kind: "run",
+              status: "FAILED",
+              stderr: err instanceof ApiError ? err.message : "Code execution failed. Please try again.",
+            },
+          })
+        }
+      },
+
+      async runSamples(problemSlug, problemId) {
+        const { language } = get()
+        const code = get().getCode(problemSlug)
+        set({ isRunning: true, resultOpen: false, result: null })
+        try {
+          const run: SampleRunResult = await submissionsApi.runSamples({ problemId, language, code })
+          const slowest = run.cases.reduce((m, c) => Math.max(m, c.time), 0)
+          const peakMem = run.cases.reduce((m, c) => Math.max(m, c.memory), 0)
+          set({
+            isRunning: false,
+            resultOpen: true,
+            result: {
+              kind: "samples",
+              status: run.status,
+              runtime: run.cases.length ? `${Math.round(slowest)} ms` : undefined,
+              memory: peakMem ? `${(peakMem / 1024).toFixed(1)} MB` : undefined,
+              compileOutput: run.compileOutput,
+              stderr: run.stderr,
+              cases: run.cases,
+              testCasesPassed: run.passed,
+              totalTestCases: run.total,
+            },
+          })
+        } catch (err) {
+          set({
+            isRunning: false,
+            resultOpen: true,
+            result: {
+              kind: "samples",
               status: "FAILED",
               stderr: err instanceof ApiError ? err.message : "Code execution failed. Please try again.",
             },

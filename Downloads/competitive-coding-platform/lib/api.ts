@@ -255,6 +255,27 @@ export interface RunResult {
   compilationError: string | null
 }
 
+export interface SampleCaseResult {
+  index: number
+  input: string
+  expectedOutput: string
+  actualOutput: string | null
+  status: string
+  time: number
+  memory: number
+}
+
+export interface SampleRunResult {
+  runId: string
+  kind: "samples"
+  status: string
+  cases: SampleCaseResult[]
+  passed: number
+  total: number
+  compileOutput?: string | null
+  stderr?: string | null
+}
+
 export interface MyStatistics {
   totalSubmissions: number
   acceptedSubmissions: number
@@ -653,6 +674,35 @@ export const submissionsApi = {
           status: "FAILED",
           stderr: "Execution timed out waiting for a judge worker. Please try again.",
         } as RunResult
+      }
+    }
+  },
+
+  /**
+   * Run code against ALL of a problem's visible sample cases (never hidden),
+   * reporting per-case pass/fail. Same async runId + poll pattern as `run`.
+   */
+  async runSamples(data: { problemId: string; language: string; code: string }): Promise<SampleRunResult> {
+    const started = await request<SampleRunResult & { status: string }>(
+      "/portal/submissions/run-samples",
+      { method: "POST", body: data }
+    )
+
+    if (started.status !== "PENDING") return started
+
+    const deadline = Date.now() + 120_000
+    for (;;) {
+      await new Promise((r) => setTimeout(r, 1200))
+      const polled = await request<SampleRunResult & { status: string }>(
+        `/portal/submissions/run/${started.runId}`
+      )
+      if (polled.status !== "PENDING") return polled
+      if (Date.now() > deadline) {
+        return {
+          ...polled,
+          status: "FAILED",
+          stderr: "Execution timed out waiting for a judge worker. Please try again.",
+        } as SampleRunResult
       }
     }
   },

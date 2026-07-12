@@ -175,7 +175,7 @@ export function ResultDrawer({ isOpen, onClose, result }: ResultDrawerProps) {
                   config.color,
                 )}
               >
-                {result.kind === "run" ? `Run: ${config.label}` : config.label}
+                {result.kind === "run" || result.kind === "samples" ? `Run: ${config.label}` : config.label}
               </Badge>
               {result.testCasesPassed !== undefined && result.totalTestCases !== undefined && (
                 <p className="text-sm text-muted-foreground">
@@ -220,6 +220,54 @@ export function ResultDrawer({ isOpen, onClose, result }: ResultDrawerProps) {
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Per-sample-case breakdown (Run against samples) */}
+          {result.kind === "samples" && result.cases && result.cases.length > 0 && (
+            <div className="mb-4 space-y-2">
+              {result.cases.map((tc) => {
+                const passed = tc.status === "ACCEPTED"
+                const label = (statusConfig[tc.status]?.label) ?? String(tc.status).replace(/_/g, " ")
+                return (
+                  <div
+                    key={tc.index}
+                    className={cn(
+                      "rounded-xl border p-3",
+                      passed ? "border-emerald-500/30 bg-emerald-500/5" : "border-red-500/30 bg-red-500/5",
+                    )}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {passed ? (
+                          <Check className="h-4 w-4 text-emerald-400" />
+                        ) : (
+                          <X className="h-4 w-4 text-red-400" />
+                        )}
+                        <span className="text-sm font-semibold text-foreground">Case {tc.index}</span>
+                        <span className={cn("text-xs", passed ? "text-emerald-400" : "text-red-400")}>{label}</span>
+                      </div>
+                      <span className="text-xs text-muted-foreground">{Math.round(tc.time)} ms</span>
+                    </div>
+                    {!passed && tc.status !== "COMPILE_ERROR" && (
+                      <div className="mt-2 grid gap-2 sm:grid-cols-3">
+                        <div>
+                          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Input</p>
+                          <pre className="overflow-x-auto rounded-lg bg-[#0d1117] p-2 font-mono text-xs text-foreground ring-1 ring-border/40 whitespace-pre-wrap">{tc.input || "—"}</pre>
+                        </div>
+                        <div>
+                          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Expected</p>
+                          <pre className="overflow-x-auto rounded-lg bg-[#0d1117] p-2 font-mono text-xs text-emerald-300 ring-1 ring-border/40 whitespace-pre-wrap">{tc.expectedOutput || "—"}</pre>
+                        </div>
+                        <div>
+                          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Got</p>
+                          <pre className="overflow-x-auto rounded-lg bg-[#0d1117] p-2 font-mono text-xs text-red-300 ring-1 ring-border/40 whitespace-pre-wrap">{tc.actualOutput ?? "—"}</pre>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           )}
 
