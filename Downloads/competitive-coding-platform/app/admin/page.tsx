@@ -112,7 +112,13 @@ function AdminDashboard() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold tracking-tight text-foreground">
-            {isSuperAdmin ? "Admin Dashboard" : "College Admin Dashboard"}
+            {isSuperAdmin
+              ? "Admin Dashboard"
+              : user?.role === "COLLEGE_ADMIN"
+                ? `Welcome ${user.collegeName || "College Admin"}`
+                : user?.role === "TEACHER"
+                  ? `Welcome ${user.firstName || user.username} ${user.gender?.toLowerCase() === "female" ? "Ma'am" : "Sir"}`
+                  : "College Dashboard"}
           </h1>
           <p className="mt-2 text-muted-foreground">Platform overview and system health monitoring</p>
         </div>
