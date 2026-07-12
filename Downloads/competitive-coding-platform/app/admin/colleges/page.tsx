@@ -145,28 +145,17 @@ function CollegesList() {
   return (
     <div className="grid gap-4 sm:grid-cols-2">
       {colleges.map((college) => (
-        <Card key={college.id} className="border-border/50 bg-card/50 transition-colors hover:bg-card">
+        <Card key={college.id} className="border-border/50 bg-card/50 flex flex-col transition-colors hover:bg-card">
           <CardHeader className="pb-2">
-            <div className="flex justify-between items-start gap-4">
-              <CardTitle className="text-lg">
-                <span className="truncate block">{college.name}</span>
-                <span className="mt-1 inline-block shrink-0 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
-                  {college.code}
-                </span>
-              </CardTitle>
-              <div className="flex items-center gap-2">
-                <Link href={`/admin/students?collegeId=${college.id}`}>
-                  <Button variant="outline" size="sm">
-                    <Users className="mr-2 h-4 w-4" />
-                    Manage Students
-                  </Button>
-                </Link>
-                <AddStaffDialog collegeId={college.id} collegeName={college.name} />
-              </div>
-            </div>
+            <CardTitle className="text-lg">
+              <span className="truncate block">{college.name}</span>
+              <span className="mt-1 inline-block shrink-0 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
+                {college.code}
+              </span>
+            </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="mt-4 flex gap-4 text-sm text-muted-foreground">
+          <CardContent className="flex-1 flex flex-col">
+            <div className="flex gap-4 text-sm text-muted-foreground">
               <div className="flex items-center gap-1.5">
                 <Users className="h-4 w-4" />
                 {college.studentCount ?? 0} students
@@ -176,7 +165,18 @@ function CollegesList() {
                 {college.staffCount ?? 0} staff
               </div>
             </div>
-            <div className="mt-4 text-xs text-muted-foreground/60">
+            
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Link href={`/admin/students?collegeId=${college.id}`}>
+                <Button variant="outline" size="sm">
+                  <Users className="mr-2 h-4 w-4" />
+                  Students
+                </Button>
+              </Link>
+              <AddStaffDialog collegeId={college.id} collegeName={college.name} />
+            </div>
+
+            <div className="mt-auto pt-4 text-xs text-muted-foreground/60">
               Created {new Date(college.createdAt).toLocaleDateString()}
             </div>
           </CardContent>
