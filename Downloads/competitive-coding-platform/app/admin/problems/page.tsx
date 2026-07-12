@@ -24,7 +24,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Search, Plus, MoreVertical, Trash2, Eye, Copy, Loader2, Globe, EyeOff } from "lucide-react"
+import { Search, Plus, MoreVertical, Trash2, Eye, Copy, Loader2, Globe, EyeOff, Pencil } from "lucide-react"
+import { ImportProblemsDialog } from "@/components/admin/import-problems-dialog"
 import { adminApi, ApiError, type AdminProblem } from "@/lib/api"
 
 export default function AdminProblemsPageWrapper() {
@@ -102,12 +103,15 @@ function AdminProblemsPage() {
               <h1 className="text-2xl font-bold text-foreground">Problem Management</h1>
               <p className="mt-1 text-muted-foreground">{problems.length} problems in library</p>
             </div>
-            <Link href="/admin/problems/new">
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                Create Problem
-              </Button>
-            </Link>
+            <div className="flex flex-wrap items-center gap-2">
+              <ImportProblemsDialog onImported={() => loadProblems("")} />
+              <Link href="/admin/problems/new">
+                <Button>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Create Problem
+                </Button>
+              </Link>
+            </div>
           </div>
 
           {/* Search */}
@@ -190,6 +194,12 @@ function AdminProblemsPage() {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
+                                <DropdownMenuItem asChild>
+                                  <Link href={`/admin/problems/${problem.id}/edit`}>
+                                    <Pencil className="mr-2 h-4 w-4" />
+                                    Edit (live)
+                                  </Link>
+                                </DropdownMenuItem>
                                 <DropdownMenuItem asChild>
                                   <Link href={`/problems/${problem.slug}`}>
                                     <Eye className="mr-2 h-4 w-4" />

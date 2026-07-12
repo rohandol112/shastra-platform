@@ -27,6 +27,7 @@ import { cn } from "@/lib/utils"
 import { useContestStore } from "@/lib/stores/contest-store"
 import { useWorkspaceStore } from "@/lib/stores/workspace-store"
 import { useAuthStore } from "@/lib/stores/auth-store"
+import { useIsMobile } from "@/hooks/use-mobile"
 import { problemsApi, submissionsApi, type ProblemDetail, type SubmissionSummary } from "@/lib/api"
 
 export default function ContestArena() {
@@ -61,6 +62,7 @@ export default function ContestArena() {
   const [solvedProblems, setSolvedProblems] = useState<Set<string>>(new Set())
   const [mySubmissions, setMySubmissions] = useState<SubmissionSummary[]>([])
   const [splitPosition, setSplitPosition] = useState(45)
+  const isMobile = useIsMobile()
 
   const drafts = useWorkspaceStore((s) => s.drafts)
   void drafts
@@ -126,14 +128,14 @@ export default function ContestArena() {
   const activeProblem = activeSlug ? problemCache[activeSlug] : null
   const activeContestProblem = contestProblems.find((p) => p.slug === activeSlug)
 
-  const handleRun = async () => {
+  const handleRun = async (customStdin?: string) => {
     if (!token) {
       toast.error("Please sign in first")
       router.push(`/login?redirect=/contests/${slug}/arena`)
       return
     }
     if (!activeProblem || !activeSlug) return
-    const stdin = activeProblem.sampleTestCases[0]?.input ?? ""
+    const stdin = customStdin ?? activeProblem.sampleTestCases[0]?.input ?? ""
     await runCode(activeSlug, stdin)
   }
 
@@ -339,10 +341,13 @@ export default function ContestArena() {
         </div>
       </div>
 
-      {/* Split Workspace */}
-      <div className="relative flex flex-1 overflow-hidden">
+      {/* Split Workspace — side-by-side on desktop, stacked on mobile */}
+      <div className="relative flex flex-1 flex-col overflow-hidden md:flex-row">
         {/* Problem Panel */}
-        <div className="overflow-hidden" style={{ width: `${splitPosition}%` }}>
+        <div
+          className="h-[45%] shrink-0 overflow-hidden border-b border-border/50 md:h-auto md:shrink md:border-b-0"
+          style={isMobile ? undefined : { width: `${splitPosition}%` }}
+        >
           {problemLoading || !activeProblem ? (
             <div className="flex h-full items-center justify-center">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -356,9 +361,9 @@ export default function ContestArena() {
           )}
         </div>
 
-        {/* Resize Handle */}
+        {/* Resize Handle (desktop only) */}
         <div
-          className="group relative w-1 cursor-col-resize bg-border/30 transition-colors hover:bg-primary"
+          className="group relative hidden w-1 cursor-col-resize bg-border/30 transition-colors hover:bg-primary md:block"
           onMouseDown={(e) => {
             e.preventDefault()
             const startX = e.clientX
@@ -382,7 +387,10 @@ export default function ContestArena() {
         />
 
         {/* Code Editor */}
-        <div className="relative overflow-hidden" style={{ width: `${100 - splitPosition}%` }}>
+        <div
+          className="relative flex-1 overflow-hidden"
+          style={isMobile ? undefined : { width: `${100 - splitPosition}%` }}
+        >
           <CodeEditor
             code={activeSlug ? getCode(activeSlug) : ""}
             language={language}
@@ -398,8 +406,8 @@ export default function ContestArena() {
           <ResultDrawer isOpen={resultOpen} onClose={closeResult} result={result} />
         </div>
 
-        {/* Mini Leaderboard */}
-        {currentLeaderboardEntries.length > 0 && (
+        {/* Mini Leaderboard (desktop only — takes too much space on phones) */}
+        {!isMobile && currentLeaderboardEntries.length > 0 && (
           <MiniLeaderboard entries={currentLeaderboardEntries} currentUserId={user?.id} />
         )}
       </div>

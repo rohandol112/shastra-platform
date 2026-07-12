@@ -122,7 +122,7 @@ export default function ContestResults() {
               {top3.length >= 1 && (
                 <div className="mb-12">
                   <h2 className="mb-6 text-center text-lg font-semibold text-muted-foreground">Top Performers</h2>
-                  <div className="flex items-end justify-center gap-4">
+                  <div className="flex items-end gap-4 overflow-x-auto pb-2 sm:justify-center">
                     {/* 2nd Place */}
                     {top3[1] && (
                       <div className="flex flex-col items-center">
@@ -185,13 +185,15 @@ export default function ContestResults() {
                 </div>
               )}
 
-              {/* Full Standings */}
+              {/* Full Standings — horizontally scrollable on small screens */}
               <div className="overflow-hidden rounded-2xl border border-border/50 bg-card/30 backdrop-blur-sm">
                 <div className="border-b border-border/50 bg-card/50 px-6 py-4">
                   <h3 className="text-lg font-semibold text-foreground">Full Standings</h3>
                   <p className="text-sm text-muted-foreground">{leaderboardTotal} participants ranked</p>
                 </div>
 
+                <div className="overflow-x-auto">
+                <div className="min-w-[640px]">
                 {/* Header */}
                 <div className="grid grid-cols-[80px_1fr_100px_100px_150px] gap-4 border-b border-border/30 bg-card/30 px-6 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   <span>Rank</span>
@@ -264,6 +266,8 @@ export default function ContestResults() {
                       </div>
                     )
                   })}
+                </div>
+                </div>
                 </div>
               </div>
             </>

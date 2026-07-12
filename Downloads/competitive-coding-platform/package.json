@@ -49,6 +49,7 @@
     "lucide-react": "^0.454.0",
     "next": "16.0.7",
     "next-themes": "^0.4.6",
+    "prismjs": "^1.30.0",
     "react": "19.2.0",
     "react-confetti": "latest",
     "react-day-picker": "9.8.0",
@@ -66,6 +67,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.9",
     "@types/node": "^22",
+    "@types/prismjs": "^1.26.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "postcss": "^8.5",

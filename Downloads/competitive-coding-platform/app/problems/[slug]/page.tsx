@@ -13,6 +13,7 @@ import { ArrowLeft, Maximize2, Minimize2, Layout, Loader2 } from "lucide-react"
 import { useProblemStore } from "@/lib/stores/problem-store"
 import { useWorkspaceStore } from "@/lib/stores/workspace-store"
 import { useAuthStore } from "@/lib/stores/auth-store"
+import { useIsMobile } from "@/hooks/use-mobile"
 import { submissionsApi, type SubmissionSummary } from "@/lib/api"
 
 export default function ProblemWorkspace() {
@@ -40,6 +41,7 @@ export default function ProblemWorkspace() {
   } = useWorkspaceStore()
 
   const [splitPosition, setSplitPosition] = useState(45)
+  const isMobile = useIsMobile()
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [mySubmissions, setMySubmissions] = useState<SubmissionSummary[]>([])
   const [submissionsLoading, setSubmissionsLoading] = useState(false)
@@ -80,10 +82,10 @@ export default function ProblemWorkspace() {
     return true
   }
 
-  const handleRun = async () => {
+  const handleRun = async (customStdin?: string) => {
     if (!requireAuth() || !problem) return
-    // Use the first visible sample test case as stdin
-    const stdin = problem.sampleTestCases[0]?.input ?? ""
+    // Custom input wins; otherwise use the first visible sample test case
+    const stdin = customStdin ?? problem.sampleTestCases[0]?.input ?? ""
     await runCode(slug, stdin)
   }
 
@@ -178,10 +180,13 @@ export default function ProblemWorkspace() {
         </div>
       </div>
 
-      {/* Split Workspace */}
-      <div className="relative flex flex-1 overflow-hidden">
+      {/* Split Workspace — side-by-side on desktop, stacked on mobile */}
+      <div className="relative flex flex-1 flex-col overflow-hidden md:flex-row">
         {/* Problem Panel */}
-        <div className="overflow-hidden" style={{ width: `${splitPosition}%` }}>
+        <div
+          className="h-[45%] shrink-0 overflow-hidden border-b border-border/50 md:h-auto md:shrink md:border-b-0"
+          style={isMobile ? undefined : { width: `${splitPosition}%` }}
+        >
           <ProblemPanel
             problem={problem}
             submissions={mySubmissions}
@@ -190,9 +195,9 @@ export default function ProblemWorkspace() {
           />
         </div>
 
-        {/* Resize Handle */}
+        {/* Resize Handle (desktop only) */}
         <div
-          className="group relative w-1 cursor-col-resize bg-border/30 transition-colors hover:bg-primary"
+          className="group relative hidden w-1 cursor-col-resize bg-border/30 transition-colors hover:bg-primary md:block"
           onMouseDown={(e) => {
             e.preventDefault()
             const startX = e.clientX
@@ -218,7 +223,10 @@ export default function ProblemWorkspace() {
         </div>
 
         {/* Code Editor */}
-        <div className="relative overflow-hidden" style={{ width: `${100 - splitPosition}%` }}>
+        <div
+          className="relative flex-1 overflow-hidden"
+          style={isMobile ? undefined : { width: `${100 - splitPosition}%` }}
+        >
           <CodeEditor
             code={code}
             language={language}

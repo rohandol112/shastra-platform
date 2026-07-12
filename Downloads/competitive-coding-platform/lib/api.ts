@@ -355,6 +355,25 @@ export interface AdminProblem {
   _count?: { submissions?: number; testCases?: number }
 }
 
+export interface AdminProblemDetail extends AdminProblem {
+  statement: string
+  inputFormat: string | null
+  outputFormat: string | null
+  constraints: string | null
+  examples: ProblemExample[] | null
+  hints: string | null
+  timeLimit: number
+  memoryLimit: number
+  testCases?: AdminTestCase[]
+}
+
+export interface ImportResult {
+  imported: number
+  skipped: number
+  problems: { id: string; title: string; slug: string; testCases: number }[]
+  errors: { title: string; reason: string }[]
+}
+
 export interface AdminTestCase {
   id: string
   input: string
@@ -607,8 +626,35 @@ export const submissionsApi = {
     )
   },
 
-  run(data: { language: string; code: string; stdin?: string }) {
-    return request<RunResult>("/portal/submissions/run", { method: "POST", body: data })
+  /**
+   * Run code asynchronously: the POST returns a runId instantly (no gateway
+   * timeout risk), then we poll until the verdict arrives. Callers still get
+   * a plain RunResult — the polling is invisible to them.
+   */
+  async run(data: { language: string; code: string; stdin?: string }): Promise<RunResult> {
+    const started = await request<RunResult & { status: string }>("/portal/submissions/run", {
+      method: "POST",
+      body: data,
+    })
+
+    // Backward compatibility: a synchronous backend returns the result directly.
+    if (started.status !== "PENDING") return started
+
+    const deadline = Date.now() + 120_000
+    for (;;) {
+      await new Promise((r) => setTimeout(r, 1200))
+      const polled = await request<RunResult & { status: string }>(
+        `/portal/submissions/run/${started.runId}`
+      )
+      if (polled.status !== "PENDING") return polled
+      if (Date.now() > deadline) {
+        return {
+          ...polled,
+          status: "FAILED",
+          stderr: "Execution timed out waiting for a judge worker. Please try again.",
+        } as RunResult
+      }
+    }
   },
 
   byId(submissionId: string) {
@@ -805,12 +851,48 @@ export const adminApi = {
     return request<AdminProblem>("/dashboard/problems", { method: "POST", body: data })
   },
 
+  problem(problemId: string, includeTestCases = false) {
+    return request<AdminProblemDetail>(`/dashboard/problems/${problemId}`, {
+      query: { includeTestCases },
+    })
+  },
+
   updateProblem(problemId: string, data: Record<string, unknown>) {
     return request<AdminProblem>(`/dashboard/problems/${problemId}`, { method: "PUT", body: data })
   },
 
   deleteProblem(problemId: string) {
     return request<void>(`/dashboard/problems/${problemId}`, { method: "DELETE" })
+  },
+
+  updateTestCase(
+    testCaseId: string,
+    data: Partial<{ input: string; expectedOutput: string; isHidden: boolean; points: number; orderIndex: number }>
+  ) {
+    return request<AdminTestCase>(`/dashboard/problems/testcases/${testCaseId}`, {
+      method: "PUT",
+      body: data,
+    })
+  },
+
+  deleteTestCase(testCaseId: string) {
+    return request<void>(`/dashboard/problems/testcases/${testCaseId}`, { method: "DELETE" })
+  },
+
+  /** Import problems already converted to the normalized JSON format. */
+  importProblems(problems: unknown[], publish = false) {
+    return request<ImportResult>("/dashboard/problems/import", {
+      method: "POST",
+      body: { problems, publish },
+    })
+  },
+
+  /** Fetch from the LeetCode/Codeforces bridge API (configured on the backend). */
+  importFetch(source: "leetcode" | "codeforces", refs: string[], publish = false) {
+    return request<ImportResult>("/dashboard/problems/import/fetch", {
+      method: "POST",
+      body: { source, refs, publish },
+    })
   },
 
   addTestCase(
@@ -884,6 +966,26 @@ export const adminApi = {
       method: "PATCH",
       body: { status },
     })
+  },
+
+  async exportContestResults(contestId: string) {
+    const url = `${API_BASE}/dashboard/contests/${contestId}/export`
+    const headers: Record<string, string> = {}
+    if (authToken) headers["Authorization"] = `Bearer ${authToken}`
+
+    const res = await fetch(url, { headers })
+    if (!res.ok) {
+      throw new Error(`Export failed with status ${res.status}`)
+    }
+    const blob = await res.blob()
+    const downloadUrl = window.URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = downloadUrl
+    a.download = `contest-${contestId}-results.csv`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    window.URL.revokeObjectURL(downloadUrl)
   },
 
   // Submissions

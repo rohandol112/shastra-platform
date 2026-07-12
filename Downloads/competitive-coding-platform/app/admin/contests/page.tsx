@@ -30,6 +30,7 @@ import {
   CalendarCheck,
   Trash2,
   Loader2,
+  FileSpreadsheet,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { adminApi, ApiError, type ContestListItem, type ContestStatus } from "@/lib/api"
@@ -283,6 +284,17 @@ function ContestRow({
                   <Eye className="mr-2 h-4 w-4" />
                   View Leaderboard
                 </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={async () => {
+                try {
+                  await adminApi.exportContestResults(contest.id)
+                  toast.success("Results exported successfully")
+                } catch (err: any) {
+                  toast.error(err.message || "Failed to export results")
+                }
+              }}>
+                <FileSpreadsheet className="mr-2 h-4 w-4" />
+                Export CSV
               </DropdownMenuItem>
               {contest.status !== "ENDED" && contest.status !== "CANCELLED" && (
                 <DropdownMenuItem onClick={() => onChangeStatus(contest, "CANCELLED")}>
