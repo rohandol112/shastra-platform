@@ -13,7 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DifficultyBadge } from "@/components/ui/difficulty-badge"
-import { AdminGuard } from "@/components/admin-guard"
+import { StaffGuard } from "@/components/admin-guard"
 import { ArrowLeft, ArrowRight, Check, Plus, X, Save, Search, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { adminApi, ApiError, type AdminProblem, type ContestType } from "@/lib/api"
@@ -27,9 +27,9 @@ interface SelectedProblem extends AdminProblem {
 
 export default function CreateContestPageWrapper() {
   return (
-    <AdminGuard>
+    <StaffGuard>
       <CreateContestPage />
-    </AdminGuard>
+    </StaffGuard>
   )
 }
 

@@ -37,7 +37,7 @@ export interface Pagination {
 }
 
 export type Difficulty = "EASY" | "MEDIUM" | "HARD"
-export type UserRole = "USER" | "ADMIN" | "MODERATOR"
+export type UserRole = "USER" | "ADMIN" | "MODERATOR" | "COLLEGE_ADMIN" | "TEACHER"
 export type ContestStatus = "DRAFT" | "SCHEDULED" | "RUNNING" | "ENDED" | "CANCELLED"
 export type ContestType = "PUBLIC" | "PRIVATE" | "COLLEGE"
 export type SubmissionStatus =
@@ -64,6 +64,40 @@ export interface AuthUser {
   isActive?: boolean
   isVerified?: boolean
   createdAt?: string
+  collegeId?: string | null
+  uid?: string | null
+}
+
+export interface College {
+  id: string
+  name: string
+  code: string
+  isActive: boolean
+  createdAt: string
+  studentCount?: number
+  staffCount?: number
+}
+
+export interface StudentRow {
+  id: string
+  uid: string | null
+  username: string
+  email: string | null
+  phone: string | null
+  firstName: string | null
+  lastName: string | null
+  isActive: boolean
+  createdAt: string
+  lastLoginAt: string | null
+}
+
+export interface BulkImportResult {
+  created: number
+  skipped: number
+  failed: number
+  total: number
+  errors: { uid: string; reason: string }[]
+  loginHint: string
 }
 
 export interface ProblemListItem {
@@ -794,6 +828,36 @@ export const adminApi = {
     return request<{ id: string; status: ContestStatus }>(`/dashboard/contests/${contestId}/status`, {
       method: "PATCH",
       body: { status },
+    })
+  },
+}
+
+// ---------- Colleges & students (staff CMS) ----------
+
+export const collegesApi = {
+  create(data: { name: string; code: string }) {
+    return request<College>("/dashboard/colleges", { method: "POST", body: data })
+  },
+
+  list() {
+    return request<{ colleges: College[] }>("/dashboard/colleges")
+  },
+
+  /** Bulk import students: one shared password, uid becomes the login id. */
+  bulkStudents(data: {
+    collegeId?: string
+    password: string
+    students: { uid: string; firstName?: string; lastName?: string; email?: string; phone?: string }[]
+  }) {
+    return request<BulkImportResult>("/dashboard/colleges/students/bulk", {
+      method: "POST",
+      body: data,
+    })
+  },
+
+  students(params: { page?: number; limit?: number; collegeId?: string; search?: string } = {}) {
+    return request<{ students: StudentRow[]; pagination: Pagination }>("/dashboard/colleges/students", {
+      query: params,
     })
   },
 }

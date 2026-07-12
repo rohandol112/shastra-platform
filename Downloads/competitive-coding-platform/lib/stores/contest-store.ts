@@ -142,4 +142,7 @@ export const useContestStore = create<ContestState>((set, get) => ({
       set({ leaderboardLoading: false })
     }
   },
+  async finishContest(contestId) {
+    // Placeholder to satisfy ContestState interface. Admin has actual updateContestStatus.
+  },
 }))

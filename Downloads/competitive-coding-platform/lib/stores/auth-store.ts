@@ -98,3 +98,13 @@ export const useAuthStore = create<AuthState>()(
 export function isAdminRole(user: AuthUser | null): boolean {
   return user?.role === "ADMIN" || user?.role === "MODERATOR"
 }
+
+/** Staff = anyone with CMS access: super admins + college admins + teachers. */
+export function isStaffRole(user: AuthUser | null): boolean {
+  return (
+    user?.role === "ADMIN" ||
+    user?.role === "MODERATOR" ||
+    user?.role === "COLLEGE_ADMIN" ||
+    user?.role === "TEACHER"
+  )
+}

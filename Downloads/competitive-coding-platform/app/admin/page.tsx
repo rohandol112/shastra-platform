@@ -17,6 +17,7 @@ import {
   ArrowUpRight,
   FileCode2,
   Loader2,
+  Building2,
 } from "lucide-react"
 import { adminApi, API_ORIGIN, type AdminAnalytics } from "@/lib/api"
 
@@ -278,6 +279,8 @@ function AdminDashboard() {
         <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[
             { label: "Manage Users", href: "/admin/users", icon: Users },
+            { label: "Manage Colleges", href: "/admin/colleges", icon: Building2 },
+            { label: "Manage Students", href: "/admin/students", icon: Users },
             { label: "Problem CMS", href: "/admin/problems", icon: Code2 },
             { label: "Contests", href: "/admin/contests", icon: Trophy },
             { label: "Plagiarism Center", href: "/admin/plagiarism", icon: AlertTriangle },

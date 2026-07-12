@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { DifficultyBadge } from "@/components/ui/difficulty-badge"
-import { AdminGuard } from "@/components/admin-guard"
+import { StaffGuard } from "@/components/admin-guard"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,9 +29,9 @@ import { adminApi, ApiError, type AdminProblem } from "@/lib/api"
 
 export default function AdminProblemsPageWrapper() {
   return (
-    <AdminGuard>
+    <StaffGuard>
       <AdminProblemsPage />
-    </AdminGuard>
+    </StaffGuard>
   )
 }
 

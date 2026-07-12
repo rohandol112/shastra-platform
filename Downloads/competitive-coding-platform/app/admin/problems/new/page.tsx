@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
-import { AdminGuard } from "@/components/admin-guard"
+import { StaffGuard } from "@/components/admin-guard"
 import { ArrowLeft, Plus, Trash2, Save, Loader2, Upload } from "lucide-react"
 import Link from "next/link"
 import { adminApi, ApiError, type Difficulty } from "@/lib/api"
@@ -21,9 +21,9 @@ import JSZip from "jszip"
 
 export default function CreateProblemPageWrapper() {
   return (
-    <AdminGuard>
+    <StaffGuard>
       <CreateProblemPage />
-    </AdminGuard>
+    </StaffGuard>
   )
 }
 

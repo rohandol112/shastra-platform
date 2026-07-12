@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Menu, X, LayoutDashboard, User, Shield, LogOut, Code2, Trophy } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { useAuthStore, isAdminRole } from "@/lib/stores/auth-store"
+import { useAuthStore, isAdminRole, isStaffRole } from "@/lib/stores/auth-store"
 import { displayName } from "@/lib/api"
 
 const appLinks = [
@@ -39,7 +39,8 @@ export function Navbar(_props: { user?: unknown }) {
   const logout = useAuthStore((s) => s.logout)
 
   const isLoggedIn = hydrated && !!user
-  const isAdmin = isLoggedIn && isAdminRole(user)
+  const isAdmin = isLoggedIn && isStaffRole(user)
+  const adminHome = isAdminRole(user) ? "/admin" : "/admin/problems"
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20)
@@ -114,7 +115,7 @@ export function Navbar(_props: { user?: unknown }) {
           )}
           {isAdmin && (
             <Link
-              href="/admin"
+              href={adminHome}
               className={cn(
                 "text-sm font-medium transition-colors hover:text-foreground",
                 pathname?.startsWith("/admin") ? "text-foreground" : "text-muted-foreground",
@@ -162,7 +163,7 @@ export function Navbar(_props: { user?: unknown }) {
                 </DropdownMenuItem>
                 {isAdmin && (
                   <DropdownMenuItem asChild>
-                    <Link href="/admin">
+                    <Link href={adminHome}>
                       <Shield className="mr-2 h-4 w-4" />
                       Admin Panel
                     </Link>
@@ -237,7 +238,7 @@ export function Navbar(_props: { user?: unknown }) {
                   </Link>
                   {isAdmin && (
                     <Link
-                      href="/admin"
+                      href={adminHome}
                       onClick={() => setMobileOpen(false)}
                       className="px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted/50 transition-colors"
                     >
