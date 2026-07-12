@@ -61,6 +61,8 @@ export interface AuthUser {
   lastName: string | null
   avatar?: string | null
   role: UserRole
+  gender?: string | null
+  collegeName?: string | null
   isActive?: boolean
   isVerified?: boolean
   createdAt?: string

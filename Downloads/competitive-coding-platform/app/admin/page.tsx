@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Navbar } from "@/components/ui/navbar"
 import { Badge } from "@/components/ui/badge"
-import { AdminGuard } from "@/components/admin-guard"
+import { StaffGuard } from "@/components/admin-guard"
 import {
   Users,
   Code2,
@@ -23,15 +23,18 @@ import { adminApi, API_ORIGIN, type AdminAnalytics } from "@/lib/api"
 
 export default function AdminDashboardPage() {
   return (
-    <AdminGuard>
+    <StaffGuard>
       <AdminDashboard />
-    </AdminGuard>
+    </StaffGuard>
   )
 }
 
 function AdminDashboard() {
   const [analytics, setAnalytics] = useState<AdminAnalytics | null>(null)
   const [loading, setLoading] = useState(true)
+  const hydrated = useAuthStore((s) => s.hydrated)
+  const user = useAuthStore((s) => s.user)
+  const isSuperAdmin = user?.role === "ADMIN" || user?.role === "MODERATOR"
   const [error, setError] = useState<string | null>(null)
   const [health, setHealth] = useState<{ api: boolean | null; db: boolean | null }>({ api: null, db: null })
 
@@ -278,13 +281,15 @@ function AdminDashboard() {
         {/* Quick Actions */}
         <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[
-            { label: "Manage Users", href: "/admin/users", icon: Users },
-            { label: "Manage Colleges", href: "/admin/colleges", icon: Building2 },
+            { label: "Manage Users", href: "/admin/users", icon: Users, adminOnly: true },
+            { label: "Manage Colleges", href: "/admin/colleges", icon: Building2, adminOnly: true },
             { label: "Manage Students", href: "/admin/students", icon: Users },
             { label: "Problem CMS", href: "/admin/problems", icon: Code2 },
             { label: "Contests", href: "/admin/contests", icon: Trophy },
             { label: "Plagiarism Center", href: "/admin/plagiarism", icon: AlertTriangle },
-          ].map((action) => {
+          ]
+          .filter((action) => !action.adminOnly || isSuperAdmin)
+          .map((action) => {
             const Icon = action.icon
             return (
               <Link

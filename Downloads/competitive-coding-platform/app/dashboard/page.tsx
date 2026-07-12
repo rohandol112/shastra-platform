@@ -73,7 +73,16 @@ export default function DashboardPage() {
     )
   }
 
-  const firstName = profile?.firstName || profile?.username || "Coder"
+  const baseName = profile?.firstName || profile?.username || "Coder"
+  const isFaculty = profile?.role === "COLLEGE_ADMIN" || profile?.role === "TEACHER"
+  let firstName = baseName
+  if (isFaculty) {
+    const title = profile?.gender === "FEMALE" ? "Ma'am" : "Sir"
+    firstName = `${baseName} ${title}`
+    if (profile?.role === "COLLEGE_ADMIN" && profile?.collegeName) {
+      firstName = `${profile.collegeName} - ${firstName}`
+    }
+  }
 
   // Per-difficulty stats from the (first 100) problems + solved flags
   const byDifficulty = (difficulty: string) => {

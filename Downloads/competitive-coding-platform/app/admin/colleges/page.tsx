@@ -184,13 +184,14 @@ function AddStaffDialog({ collegeId, collegeName }: { collegeId: string; college
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [role, setRole] = useState("TEACHER")
+  const [gender, setGender] = useState("MALE")
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
     try {
-      await collegesApi.createStaff(collegeId, { firstName, lastName, email, password, role })
+      await collegesApi.createStaff(collegeId, { firstName, lastName, email, password, role, gender })
       toast.success(`${role.replace("_", " ")} account created successfully`)
       setOpen(false)
       setFirstName("")
@@ -245,6 +246,19 @@ function AddStaffDialog({ collegeId, collegeName }: { collegeId: string; college
             >
               <option value="TEACHER">Teacher</option>
               <option value="COLLEGE_ADMIN">College Admin</option>
+            </select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="gender">Gender</Label>
+            <select
+              id="gender"
+              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              value={gender}
+              onChange={(e) => setGender(e.target.value)}
+            >
+              <option value="MALE">Male</option>
+              <option value="FEMALE">Female</option>
+              <option value="OTHER">Other</option>
             </select>
           </div>
           <Button type="submit" className="w-full" disabled={isSubmitting}>
