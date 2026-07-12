@@ -39,11 +39,15 @@ function AdminDashboard() {
   const [health, setHealth] = useState<{ api: boolean | null; db: boolean | null }>({ api: null, db: null })
 
   useEffect(() => {
-    adminApi
-      .analytics()
-      .then(setAnalytics)
-      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load analytics"))
-      .finally(() => setLoading(false))
+    if (isSuperAdmin) {
+      adminApi
+        .analytics()
+        .then(setAnalytics)
+        .catch((err) => setError(err instanceof Error ? err.message : "Failed to load analytics"))
+        .finally(() => setLoading(false))
+    } else {
+      setLoading(false)
+    }
 
     // Health checks against the backend
     fetch(`${API_ORIGIN}/health`)
@@ -107,11 +111,13 @@ function AdminDashboard() {
       <main className="mx-auto max-w-7xl px-4 pb-12 pt-24 lg:px-6 lg:pt-28">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Admin Dashboard</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">
+            {isSuperAdmin ? "Admin Dashboard" : "College Admin Dashboard"}
+          </h1>
           <p className="mt-2 text-muted-foreground">Platform overview and system health monitoring</p>
         </div>
 
-        {loading ? (
+        {isSuperAdmin && loading ? (
           <div className="flex items-center justify-center rounded-2xl border border-border/50 bg-card/50 py-16">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
@@ -123,7 +129,9 @@ function AdminDashboard() {
               <p className="mt-1 text-sm text-muted-foreground">{error}</p>
             </div>
           </div>
-        ) : (
+            </div>
+          </div>
+        ) : (isSuperAdmin ? (
           <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {stats.map((stat) => {
               const Icon = stat.icon
@@ -155,7 +163,7 @@ function AdminDashboard() {
               )
             })}
           </div>
-        )}
+        ) : null)}
 
         <div className="grid gap-6 lg:grid-cols-2">
           {/* System Health */}

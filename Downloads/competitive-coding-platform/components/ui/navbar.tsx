@@ -40,7 +40,7 @@ export function Navbar(_props: { user?: unknown }) {
 
   const isLoggedIn = hydrated && !!user
   const isAdmin = isLoggedIn && isStaffRole(user)
-  const adminHome = isAdminRole(user) ? "/admin" : "/admin/problems"
+  const adminHome = "/admin"
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20)
