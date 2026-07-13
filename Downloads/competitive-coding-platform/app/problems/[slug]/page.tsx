@@ -13,10 +13,19 @@ import { ArrowLeft, Maximize2, Minimize2, Layout, Loader2 } from "lucide-react"
 import { useProblemStore } from "@/lib/stores/problem-store"
 import { useWorkspaceStore } from "@/lib/stores/workspace-store"
 import { useAuthStore } from "@/lib/stores/auth-store"
+import { AuthGuard } from "@/components/admin-guard"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { submissionsApi, type SubmissionSummary } from "@/lib/api"
 
-export default function ProblemWorkspace() {
+export default function ProblemWorkspaceWrapper() {
+  return (
+    <AuthGuard>
+      <ProblemWorkspace />
+    </AuthGuard>
+  )
+}
+
+function ProblemWorkspace() {
   const params = useParams()
   const router = useRouter()
   const slug = params.slug as string

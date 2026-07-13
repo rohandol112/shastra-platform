@@ -13,9 +13,18 @@ import { Calendar, Clock, Users, Trophy, ArrowRight, Lock, Globe, UserCheck, Zap
 import { cn } from "@/lib/utils"
 import { useContestStore } from "@/lib/stores/contest-store"
 import { useAuthStore } from "@/lib/stores/auth-store"
+import { AuthGuard } from "@/components/admin-guard"
 import { contestsApi, ApiError, type ContestListItem } from "@/lib/api"
 
-export default function ContestsPage() {
+export default function ContestsPageWrapper() {
+  return (
+    <AuthGuard>
+      <ContestsPage />
+    </AuthGuard>
+  )
+}
+
+function ContestsPage() {
   const router = useRouter()
   const { contests, loading, error, fetchContests, register, unregister, registering } = useContestStore()
   const token = useAuthStore((s) => s.token)

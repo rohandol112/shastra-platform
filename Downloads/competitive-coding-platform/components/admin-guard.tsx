@@ -32,6 +32,13 @@ function GuardSpinner() {
   )
 }
 
+/** Any signed-in user. Redirects guests to login with a return path. */
+export function AuthGuard({ children }: { children: React.ReactNode }) {
+  const ok = useGuard(true)
+  if (!ok) return <GuardSpinner />
+  return <>{children}</>
+}
+
 /** Super-admin pages (analytics, user management, colleges). */
 export function AdminGuard({ children }: { children: React.ReactNode }) {
   const user = useAuthStore((s) => s.user)

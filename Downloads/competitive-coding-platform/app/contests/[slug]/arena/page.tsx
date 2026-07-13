@@ -22,7 +22,7 @@ import { MiniLeaderboard } from "@/components/contest/mini-leaderboard"
 import { ProblemPanel } from "@/components/workspace/problem-panel"
 import { CodeEditor } from "@/components/workspace/code-editor"
 import { ResultDrawer } from "@/components/workspace/result-drawer"
-import { ArrowLeft, AlertTriangle, Check, Trophy, Clock, Loader2 } from "lucide-react"
+import { ArrowLeft, Check, Trophy, Clock, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useContestStore } from "@/lib/stores/contest-store"
 import { useWorkspaceStore } from "@/lib/stores/workspace-store"
@@ -73,6 +73,18 @@ export default function ContestArena() {
     if (hydrated) fetchContest(slug)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug, hydrated, token])
+
+  const contestIsLive =
+    !!contest &&
+    contest.status === "RUNNING" &&
+    new Date(contest.startTime).getTime() <= Date.now() &&
+    new Date(contest.endTime).getTime() > Date.now()
+
+  useEffect(() => {
+    if (!hydrated || !contest) return
+    if (!contestIsLive) router.replace(`/contests/${contest.slug}`)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, contest, contestIsLive])
 
   const contestProblems = useMemo(
     () => (contest?.problems ?? []).slice().sort((a, b) => a.orderIndex - b.orderIndex),
@@ -211,32 +223,11 @@ export default function ContestArena() {
     )
   }
 
-  if (contest.status !== "RUNNING") {
+  if (!contestIsLive) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-background">
-        <div className="text-center">
-          <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-warning/10 mx-auto">
-            <AlertTriangle className="h-10 w-10 text-warning" />
-          </div>
-          <h1 className="text-2xl font-bold text-foreground">Contest Not Active</h1>
-          <p className="mt-2 text-muted-foreground">
-            {contest.status === "ENDED"
-              ? "This contest has ended."
-              : `This contest is scheduled to start ${new Date(contest.startTime).toLocaleString()}`}
-          </p>
-          <div className="mt-6 flex justify-center gap-3">
-            <Link href="/contests">
-              <Button variant="outline" className="bg-transparent">
-                Back to Contests
-              </Button>
-            </Link>
-            {contest.status === "ENDED" && (
-              <Link href={`/contests/${slug}/results`}>
-                <Button>View Results</Button>
-              </Link>
-            )}
-          </div>
-        </div>
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <p className="mt-4 text-sm text-muted-foreground">Taking you to the contest page…</p>
       </div>
     )
   }

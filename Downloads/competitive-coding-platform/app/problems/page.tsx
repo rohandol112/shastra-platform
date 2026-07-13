@@ -12,12 +12,21 @@ import { DifficultyBadge } from "@/components/ui/difficulty-badge"
 import { Search, Shuffle, Code2, Filter, ChevronRight, ChevronLeft, Loader2, AlertCircle } from "lucide-react"
 import { useProblemStore } from "@/lib/stores/problem-store"
 import { useAuthStore } from "@/lib/stores/auth-store"
+import { AuthGuard } from "@/components/admin-guard"
 import type { Difficulty, ProblemListItem } from "@/lib/api"
 
 type DifficultyFilter = Difficulty | "ALL"
 type StatusFilter = "ALL" | "SOLVED" | "TODO"
 
-export default function ProblemsPage() {
+export default function ProblemsPageWrapper() {
+  return (
+    <AuthGuard>
+      <ProblemsPage />
+    </AuthGuard>
+  )
+}
+
+function ProblemsPage() {
   const {
     problems,
     pagination,
