@@ -423,6 +423,23 @@ export interface GenerateTestCasesJob {
   error?: string
 }
 
+// Declarative input-spec: describe the SHAPE of a valid input (no generator
+// program). Operands (min/max/count/len) are strings in the UI — a number, a
+// big integer like "1000000000000000000", or the name of an earlier int field.
+export type InputSpecField =
+  | { kind: "int"; name?: string; min: string; max: string }
+  | { kind: "ints"; count: string; min: string; max: string; layout: "lines" | "spaced" }
+  | { kind: "string"; minLen: string; maxLen: string; alphabet: string }
+
+export interface GenerateFromSolutionRequest {
+  solutionCode: string
+  solutionLanguage: string
+  spec: { fields: InputSpecField[] }
+  count: number
+  isHidden: boolean
+  points: number
+}
+
 export interface AdminSubmissionUser {
   id: string
   email: string | null
@@ -995,6 +1012,27 @@ export const adminApi = {
     return request<{ jobId: string; status: string }>(`/dashboard/problems/${problemId}/testcases/generate`, {
       method: "POST",
       body: data,
+    })
+  },
+
+  /**
+   * Solution-only generation: you provide ONLY a reference solution plus a
+   * declarative input spec (no generator program). The backend synthesizes
+   * random inputs from the spec, runs your solution to get expected outputs,
+   * and inserts the pairs. Returns a jobId — poll with pollGenerateTestCases.
+   */
+  generateFromSolution(problemId: string, data: GenerateFromSolutionRequest) {
+    return request<{ jobId: string; status: string }>(
+      `/dashboard/problems/${problemId}/testcases/generate-from-solution`,
+      { method: "POST", body: data }
+    )
+  },
+
+  /** Generate ONE sample input from a spec so you can eyeball the format. */
+  previewInputSpec(spec: { fields: InputSpecField[] }) {
+    return request<{ input: string; bytes: number }>(`/dashboard/problems/testcases/spec-preview`, {
+      method: "POST",
+      body: { spec },
     })
   },
 

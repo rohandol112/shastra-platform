@@ -29,7 +29,14 @@ import {
   Wand2,
   Download,
 } from "lucide-react"
-import { adminApi, ApiError, type AdminProblemDetail, type AdminTestCase, type Difficulty } from "@/lib/api"
+import {
+  adminApi,
+  ApiError,
+  type AdminProblemDetail,
+  type AdminTestCase,
+  type Difficulty,
+  type InputSpecField,
+} from "@/lib/api"
 import { useAuthStore, canGenerateTestCases } from "@/lib/stores/auth-store"
 import { LANGUAGES } from "@/lib/stores/workspace-store"
 
@@ -389,6 +396,26 @@ function EditProblemPage() {
 
 // ---------------------------------------------------------------------------
 
+const ALPHA_LOWER = "abcdefghijklmnopqrstuvwxyz"
+
+function emptyField(kind: InputSpecField["kind"]): InputSpecField {
+  if (kind === "int") return { kind: "int", name: "", min: "1", max: "100" }
+  if (kind === "ints") return { kind: "ints", count: "N", min: "1", max: "1000000000", layout: "lines" }
+  return { kind: "string", minLen: "1", maxLen: "100", alphabet: ALPHA_LOWER }
+}
+
+const TEMPLATE_ARRAY: InputSpecField[] = [
+  { kind: "int", name: "N", min: "1", max: "100000" },
+  { kind: "int", name: "K", min: "1", max: "N" },
+  { kind: "int", name: "X", min: "1", max: "1000000000000000000" },
+  { kind: "ints", count: "N", min: "1", max: "1000000000", layout: "lines" },
+]
+const TEMPLATE_STRING: InputSpecField[] = [
+  { kind: "string", minLen: "1", maxLen: "2000", alphabet: ALPHA_LOWER },
+  { kind: "string", minLen: "1", maxLen: "2000", alphabet: ALPHA_LOWER },
+  { kind: "int", min: "0", max: "100000" },
+]
+
 function TestCaseGenerator({
   problemId,
   onGenerated,
@@ -399,34 +426,65 @@ function TestCaseGenerator({
   const user = useAuthStore((s) => s.user)
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [previewing, setPreviewing] = useState(false)
+  const [preview, setPreview] = useState<string | null>(null)
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null)
-  const [form, setForm] = useState({
-    generatorLanguage: "python",
-    generatorCode: "",
-    solutionLanguage: "python",
-    solutionCode: "",
-    count: 10,
-    isHidden: true,
-    points: 10,
-  })
+  const [solutionLanguage, setSolutionLanguage] = useState("python")
+  const [solutionCode, setSolutionCode] = useState("")
+  const [count, setCount] = useState(10)
+  const [points, setPoints] = useState(10)
+  const [isHidden, setIsHidden] = useState(true)
+  const [fields, setFields] = useState<InputSpecField[]>(TEMPLATE_ARRAY)
 
-  // Untrusted-code generation is scoped tighter than the rest of this page —
-  // super admins, college admins, and teachers only (no moderators).
+  // Scoped to super admins, college admins, and teachers (no moderators).
   if (!canGenerateTestCases(user)) return null
 
+  const updateField = (i: number, patch: Record<string, string>) =>
+    setFields((prev) => prev.map((f, idx) => (idx === i ? ({ ...f, ...patch } as InputSpecField) : f)))
+  const changeKind = (i: number, kind: InputSpecField["kind"]) =>
+    setFields((prev) => prev.map((f, idx) => (idx === i ? emptyField(kind) : f)))
+  const addField = () => setFields((prev) => [...prev, emptyField("int")])
+  const removeField = (i: number) => setFields((prev) => prev.filter((_, idx) => idx !== i))
+
+  // Drop blank names so an int without a name never creates a "" variable.
+  const payloadFields = (): InputSpecField[] =>
+    fields.map((f) => (f.kind === "int" && !f.name?.trim() ? { ...f, name: undefined } : f))
+
+  const handlePreview = async () => {
+    setPreviewing(true)
+    setPreview(null)
+    try {
+      const res = await adminApi.previewInputSpec({ fields: payloadFields() })
+      setPreview(res.input)
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Could not build a sample input from this spec")
+    } finally {
+      setPreviewing(false)
+    }
+  }
+
   const handleGenerate = async () => {
-    if (!form.generatorCode.trim() || !form.solutionCode.trim()) {
-      toast.error("Generator code and reference solution are both required")
+    if (!solutionCode.trim()) {
+      toast.error("Paste your reference solution first")
+      return
+    }
+    if (fields.length === 0) {
+      toast.error("Describe the input with at least one field")
       return
     }
     setBusy(true)
     setProgress(null)
     try {
-      const started = await adminApi.generateTestCases(problemId, form)
-      // Bounded poll: 2 judge round-trips per case + queueing, so give generous
-      // headroom but stop eventually rather than polling until the Redis key
-      // expires. If we hit the deadline the backend job may still finish — the
-      // cases will appear on refresh.
+      const started = await adminApi.generateFromSolution(problemId, {
+        solutionCode,
+        solutionLanguage,
+        spec: { fields: payloadFields() },
+        count,
+        isHidden,
+        points,
+      })
+      // Bounded poll — the backend job may outlive this, in which case cases
+      // still appear on refresh.
       const deadline = Date.now() + 15 * 60_000
       let job = await adminApi.pollGenerateTestCases(started.jobId)
       while (job.status === "PENDING") {
@@ -443,7 +501,7 @@ function TestCaseGenerator({
         const n = job.testCases.length
         toast.success(`Generated ${n} test case${n === 1 ? "" : "s"} — added below`)
         setOpen(false)
-        setForm({ ...form, generatorCode: "", solutionCode: "" })
+        setSolutionCode("")
       } else {
         toast.error(job.error || "Generation failed")
       }
@@ -455,53 +513,38 @@ function TestCaseGenerator({
     }
   }
 
+  const opInput = (value: string, onChange: (v: string) => void, placeholder: string, width = "w-28") => (
+    <Input
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      className={`h-8 ${width} border-input bg-card font-mono text-xs text-foreground`}
+    />
+  )
+
   return (
     <Card className="border-border bg-card">
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
-          <CardTitle className="text-foreground">Stress-Test Generator</CardTitle>
+          <CardTitle className="text-foreground">Generate Test Cases from a Solution</CardTitle>
           <p className="mt-1 text-sm text-muted-foreground">
-            Give a generator program (prints one random input per run) and a reference solution — we run both
-            through the judge and add the resulting pairs as test cases.
+            Paste your correct solution and describe the input shape below — we create random inputs, run your
+            solution to get the answers, and add the cases. No generator code needed.
           </p>
         </div>
         <Button type="button" variant="outline" size="sm" onClick={() => setOpen((v) => !v)}>
           <Wand2 className="mr-2 h-4 w-4" />
-          {open ? "Close" : "Generate Test Cases"}
+          {open ? "Close" : "Generate"}
         </Button>
       </CardHeader>
       {open && (
-        <CardContent className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label className="text-foreground">Generator</Label>
-              <Select
-                value={form.generatorLanguage}
-                onValueChange={(v) => setForm({ ...form, generatorLanguage: v })}
-              >
-                <SelectTrigger className="border-input bg-background text-foreground">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {LANGUAGES.map((l) => (
-                    <SelectItem key={l.value} value={l.value}>
-                      {l.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Textarea
-                value={form.generatorCode}
-                onChange={(e) => setForm({ ...form, generatorCode: e.target.value })}
-                placeholder={"Reads a seed from stdin, prints one random valid input.\ne.g. random.seed(int(input())); print(random.randint(1, 1000))"}
-                rows={8}
-                className="border-input bg-background font-mono text-xs text-foreground"
-              />
-            </div>
-            <div className="space-y-2">
+        <CardContent className="space-y-5">
+          {/* Reference solution */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
               <Label className="text-foreground">Reference Solution</Label>
-              <Select value={form.solutionLanguage} onValueChange={(v) => setForm({ ...form, solutionLanguage: v })}>
-                <SelectTrigger className="border-input bg-background text-foreground">
+              <Select value={solutionLanguage} onValueChange={setSolutionLanguage}>
+                <SelectTrigger className="h-8 w-40 border-input bg-background text-foreground">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -512,25 +555,132 @@ function TestCaseGenerator({
                   ))}
                 </SelectContent>
               </Select>
-              <Textarea
-                value={form.solutionCode}
-                onChange={(e) => setForm({ ...form, solutionCode: e.target.value })}
-                placeholder="Reads the generated input from stdin, prints the correct output — this becomes the expected output for each generated case."
-                rows={8}
-                className="border-input bg-background font-mono text-xs text-foreground"
-              />
             </div>
+            <Textarea
+              value={solutionCode}
+              onChange={(e) => setSolutionCode(e.target.value)}
+              placeholder="Reads input from stdin, prints the correct answer to stdout. Its output becomes the expected output for each generated case — so it must be correct and fast."
+              rows={8}
+              className="border-input bg-background font-mono text-xs text-foreground"
+            />
           </div>
 
+          {/* Input spec builder */}
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <Label className="text-foreground">Input Format</Label>
+              <div className="flex items-center gap-2">
+                <Button type="button" variant="ghost" size="sm" onClick={() => setFields(TEMPLATE_ARRAY)}>
+                  Array template
+                </Button>
+                <Button type="button" variant="ghost" size="sm" onClick={() => setFields(TEMPLATE_STRING)}>
+                  String template
+                </Button>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Fields are printed in order, each on its own line. A count/min/max can be a number, a big number
+              like <code className="font-mono">1000000000000000000</code>, or the <em>name</em> of an integer
+              field above it (e.g. an array of length <code className="font-mono">N</code>).
+            </p>
+
+            <div className="space-y-2">
+              {fields.map((f, i) => (
+                <div key={i} className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-background p-3">
+                  <Select value={f.kind} onValueChange={(v) => changeKind(i, v as InputSpecField["kind"])}>
+                    <SelectTrigger className="h-8 w-36 border-input bg-card text-foreground">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="int">Integer</SelectItem>
+                      <SelectItem value="ints">Integer list</SelectItem>
+                      <SelectItem value="string">String</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  {f.kind === "int" && (
+                    <>
+                      {opInput(f.name ?? "", (v) => updateField(i, { name: v }), "name (opt)", "w-28")}
+                      <span className="text-xs text-muted-foreground">min</span>
+                      {opInput(f.min, (v) => updateField(i, { min: v }), "1")}
+                      <span className="text-xs text-muted-foreground">max</span>
+                      {opInput(f.max, (v) => updateField(i, { max: v }), "100")}
+                    </>
+                  )}
+
+                  {f.kind === "ints" && (
+                    <>
+                      <span className="text-xs text-muted-foreground">count</span>
+                      {opInput(f.count, (v) => updateField(i, { count: v }), "N", "w-20")}
+                      <span className="text-xs text-muted-foreground">min</span>
+                      {opInput(f.min, (v) => updateField(i, { min: v }), "1")}
+                      <span className="text-xs text-muted-foreground">max</span>
+                      {opInput(f.max, (v) => updateField(i, { max: v }), "1e9")}
+                      <Select value={f.layout} onValueChange={(v) => updateField(i, { layout: v })}>
+                        <SelectTrigger className="h-8 w-32 border-input bg-card text-foreground">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="lines">one per line</SelectItem>
+                          <SelectItem value="spaced">space-separated</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </>
+                  )}
+
+                  {f.kind === "string" && (
+                    <>
+                      <span className="text-xs text-muted-foreground">len</span>
+                      {opInput(f.minLen, (v) => updateField(i, { minLen: v }), "1", "w-20")}
+                      <span className="text-xs text-muted-foreground">to</span>
+                      {opInput(f.maxLen, (v) => updateField(i, { maxLen: v }), "2000", "w-20")}
+                      <span className="text-xs text-muted-foreground">alphabet</span>
+                      {opInput(f.alphabet, (v) => updateField(i, { alphabet: v }), "abc…", "w-44")}
+                    </>
+                  )}
+
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="ml-auto h-8 w-8 text-destructive hover:text-destructive"
+                    onClick={() => removeField(i)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+
+            <Button type="button" variant="outline" size="sm" onClick={addField}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add field
+            </Button>
+          </div>
+
+          {/* Sample-input preview */}
+          <div className="space-y-2">
+            <Button type="button" variant="outline" size="sm" onClick={handlePreview} disabled={previewing}>
+              {previewing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Eye className="mr-2 h-4 w-4" />}
+              Preview a sample input
+            </Button>
+            {preview !== null && (
+              <pre className="max-h-40 overflow-auto rounded-md bg-[#0d1117] p-3 font-mono text-xs text-foreground ring-1 ring-border/40">
+                {preview}
+              </pre>
+            )}
+          </div>
+
+          {/* Controls */}
           <div className="flex flex-wrap items-center gap-6 rounded-lg border border-border bg-background p-4">
             <label className="flex items-center gap-2 text-sm text-foreground">
-              Count
+              How many
               <Input
                 type="number"
                 min={1}
                 max={50}
-                value={form.count}
-                onChange={(e) => setForm({ ...form, count: Number(e.target.value) })}
+                value={count}
+                onChange={(e) => setCount(Number(e.target.value))}
                 className="h-8 w-20 border-input bg-card text-foreground"
               />
             </label>
@@ -540,13 +690,13 @@ function TestCaseGenerator({
                 type="number"
                 min={0}
                 max={100}
-                value={form.points}
-                onChange={(e) => setForm({ ...form, points: Number(e.target.value) })}
+                value={points}
+                onChange={(e) => setPoints(Number(e.target.value))}
                 className="h-8 w-20 border-input bg-card text-foreground"
               />
             </label>
             <label className="flex items-center gap-2 text-sm text-foreground">
-              <Switch checked={form.isHidden} onCheckedChange={(v) => setForm({ ...form, isHidden: v })} />
+              <Switch checked={isHidden} onCheckedChange={setIsHidden} />
               Hidden
             </label>
           </div>
@@ -559,7 +709,7 @@ function TestCaseGenerator({
             )}
             <Button onClick={handleGenerate} disabled={busy}>
               {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
-              {busy ? "Generating…" : "Run Generator"}
+              {busy ? "Generating…" : "Generate Test Cases"}
             </Button>
           </div>
         </CardContent>
