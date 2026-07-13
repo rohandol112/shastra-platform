@@ -121,7 +121,11 @@ export default function ContestsPage() {
                         </div>
                         <div>
                           <div className="flex flex-wrap items-center gap-3">
-                            <h2 className="text-xl font-bold text-foreground">{contest.title}</h2>
+                            <Link href={`/contests/${contest.slug}`}>
+                              <h2 className="text-xl font-bold text-foreground transition-colors hover:text-primary">
+                                {contest.title}
+                              </h2>
+                            </Link>
                             <Badge className="animate-pulse bg-success text-success-foreground">LIVE NOW</Badge>
                           </div>
                           <p className="mt-1 text-sm text-muted-foreground">
@@ -246,7 +250,11 @@ function ContestCard({
       <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex-1 space-y-4">
           <div className="flex flex-wrap items-center gap-3">
-            <h3 className="text-xl font-semibold text-foreground">{contest.title}</h3>
+            <Link href={`/contests/${contest.slug}`}>
+              <h3 className="text-xl font-semibold text-foreground transition-colors hover:text-primary">
+                {contest.title}
+              </h3>
+            </Link>
             <Badge variant="outline" className={cn("border", type.className)}>
               <TypeIcon className="mr-1 h-3 w-3" />
               {contest.type}

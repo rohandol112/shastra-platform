@@ -185,6 +185,32 @@ export default function ContestArena() {
     )
   }
 
+  // The arena is never shown to logged-out visitors — a live contest's problems
+  // must not leak. Send them to sign in, then back to the contest page.
+  if (!token) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-primary/10 mx-auto">
+            <Trophy className="h-10 w-10 text-primary" />
+          </div>
+          <h1 className="text-2xl font-bold text-foreground">Sign in to enter this contest</h1>
+          <p className="mt-2 text-muted-foreground">You need an account to view and solve contest problems.</p>
+          <div className="mt-6 flex justify-center gap-3">
+            <Link href={`/contests/${slug}`}>
+              <Button variant="outline" className="bg-transparent">
+                Contest details
+              </Button>
+            </Link>
+            <Link href={`/login?redirect=/contests/${slug}`}>
+              <Button>Sign In</Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   if (contest.status !== "RUNNING") {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-background">
@@ -215,7 +241,7 @@ export default function ContestArena() {
     )
   }
 
-  if (token && contest.isFinished) {
+  if (contest.isFinished) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-background">
         <div className="text-center">
@@ -230,7 +256,7 @@ export default function ContestArena() {
                 Back to Contests
               </Button>
             </Link>
-            <Link href={`/contests//leaderboard`}>
+            <Link href={`/contests/${slug}/results`}>
               <Button>
                 View Leaderboard
               </Button>
@@ -241,7 +267,7 @@ export default function ContestArena() {
     )
   }
 
-  if (token && !contest.isRegistered) {
+  if (!contest.isRegistered) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-background">
         <div className="text-center">
@@ -260,6 +286,9 @@ export default function ContestArena() {
               onClick={async () => {
                 try {
                   await useContestStore.getState().register(contest.id)
+                  // Refetch so the now-registered user gets the problems the
+                  // backend withholds from non-participants.
+                  await fetchContest(slug)
                   toast.success("Registered! Good luck 🍀")
                 } catch (err) {
                   toast.error(err instanceof Error ? err.message : "Registration failed")
