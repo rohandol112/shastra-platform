@@ -395,6 +395,33 @@ export interface ImportResult {
   errors: { title: string; reason: string }[]
 }
 
+export interface AdminContestProblem {
+  id: string
+  problemId: string
+  points: number
+  bonusPoints: number
+  orderIndex: number
+  problem: { id: string; title: string; slug: string; difficulty: Difficulty; timeLimit: number; memoryLimit: number }
+}
+
+export interface AdminContestDetail {
+  id: string
+  title: string
+  slug: string
+  description: string | null
+  startTime: string
+  endTime: string
+  duration: number
+  type: ContestType
+  status: ContestStatus
+  rules?: string | null
+  prizes?: string | null
+  maxParticipants?: number | null
+  registrationDeadline?: string | null
+  isPublic: boolean
+  problems?: AdminContestProblem[]
+}
+
 export interface AdminTestCase {
   id: string
   input: string
@@ -1089,6 +1116,10 @@ export const adminApi = {
     return request<ContestListItem>("/dashboard/contests", { method: "POST", body: data })
   },
 
+  contest(contestId: string) {
+    return request<AdminContestDetail>(`/dashboard/contests/${contestId}`, { query: { includeDetails: "true" } })
+  },
+
   updateContest(contestId: string, data: Record<string, unknown>) {
     return request<ContestListItem>(`/dashboard/contests/${contestId}`, { method: "PUT", body: data })
   },
@@ -1102,6 +1133,10 @@ export const adminApi = {
     data: { problemId: string; points: number; orderIndex: number; bonusPoints?: number }
   ) {
     return request<unknown>(`/dashboard/contests/${contestId}/problems`, { method: "POST", body: data })
+  },
+
+  removeProblemFromContest(contestId: string, problemId: string) {
+    return request<unknown>(`/dashboard/contests/${contestId}/problems/${problemId}`, { method: "DELETE" })
   },
 
   updateContestStatus(contestId: string, status: ContestStatus) {

@@ -31,6 +31,7 @@ import {
   Trash2,
   Loader2,
   FileSpreadsheet,
+  Pencil,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { adminApi, ApiError, type ContestListItem, type ContestStatus } from "@/lib/api"
@@ -280,8 +281,20 @@ function ContestRow({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem asChild>
-                <Link href={`/contests/${contest.slug}/results`}>
+                <Link href={`/admin/contests/${contest.id}/edit`}>
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Edit Contest
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href={`/contests/${contest.slug}`} target="_blank">
                   <Eye className="mr-2 h-4 w-4" />
+                  Preview
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href={`/contests/${contest.slug}/results`}>
+                  <Trophy className="mr-2 h-4 w-4" />
                   View Leaderboard
                 </Link>
               </DropdownMenuItem>
