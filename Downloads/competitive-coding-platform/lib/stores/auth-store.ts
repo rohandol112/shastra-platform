@@ -108,3 +108,9 @@ export function isStaffRole(user: AuthUser | null): boolean {
     user?.role === "TEACHER"
   )
 }
+
+/** Test-case generator runs untrusted code repeatedly via Judge0 — scoped
+ *  tighter than isStaffRole (no MODERATOR), matching the backend gate. */
+export function canGenerateTestCases(user: AuthUser | null): boolean {
+  return user?.role === "ADMIN" || user?.role === "COLLEGE_ADMIN" || user?.role === "TEACHER"
+}

@@ -404,6 +404,25 @@ export interface AdminTestCase {
   orderIndex: number
 }
 
+export interface GenerateTestCasesRequest {
+  generatorCode: string
+  generatorLanguage: string
+  solutionCode: string
+  solutionLanguage: string
+  count: number
+  isHidden: boolean
+  points: number
+}
+
+export interface GenerateTestCasesJob {
+  jobId?: string
+  status: "PENDING" | "COMPLETED" | "FAILED"
+  progress?: { done: number; total: number } | null
+  created?: number
+  testCases?: AdminTestCase[]
+  error?: string
+}
+
 export interface AdminSubmissionUser {
   id: string
   email: string | null
@@ -964,6 +983,42 @@ export const adminApi = {
 
   testCases(problemId: string) {
     return request<{ testCases: AdminTestCase[] }>(`/dashboard/problems/${problemId}/testcases`)
+  },
+
+  /**
+   * Kick off a stress-test generator job: runs `generatorCode` (produces one
+   * random input per seed) and `solutionCode` (computes the correct output)
+   * through Judge0 `count` times, and inserts the resulting pairs as test
+   * cases. Returns instantly with a jobId — poll with pollGenerateTestCases.
+   */
+  generateTestCases(problemId: string, data: GenerateTestCasesRequest) {
+    return request<{ jobId: string; status: string }>(`/dashboard/problems/${problemId}/testcases/generate`, {
+      method: "POST",
+      body: data,
+    })
+  },
+
+  pollGenerateTestCases(jobId: string) {
+    return request<GenerateTestCasesJob>(`/dashboard/problems/testcases/generate/${jobId}`)
+  },
+
+  /** Downloads a ZIP of all of a problem's test cases (testcases/N.in + N.out). */
+  async exportTestCasesZip(problemId: string) {
+    const url = `${API_BASE}/dashboard/problems/${problemId}/testcases/export`
+    const headers: Record<string, string> = {}
+    if (authToken) headers["Authorization"] = `Bearer ${authToken}`
+
+    const res = await fetch(url, { headers })
+    if (!res.ok) throw new Error(`Export failed with status ${res.status}`)
+    const blob = await res.blob()
+    const downloadUrl = window.URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = downloadUrl
+    a.download = `problem-${problemId}-testcases.zip`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    window.URL.revokeObjectURL(downloadUrl)
   },
 
   // Contests
