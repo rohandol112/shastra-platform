@@ -395,6 +395,67 @@ export interface ImportResult {
   errors: { title: string; reason: string }[]
 }
 
+export interface PlagiarismContestSummary {
+  id: string
+  title: string
+  slug: string
+  status: ContestStatus
+  startTime: string
+  endTime: string
+  reportCount: number
+  pendingCount: number
+  confirmedCount: number
+  lastDetectedAt: string | null
+}
+
+export interface PlagiarismReportRow {
+  id: string
+  similarity: number
+  fingerprintScore: number
+  embeddingScore: number | null
+  status: "PENDING" | "CONFIRMED" | "DISMISSED"
+  detectedAt: string
+  problemId: string
+  problemTitle: string
+  userAId: string
+  userA: string
+  userBId: string
+  userB: string
+  matchedLines: number
+}
+
+export interface PlagiarismReportDetail {
+  id: string
+  problemId: string
+  problemTitle: string
+  problemSlug: string
+  contestId: string | null
+  userA: string
+  userB: string
+  similarity: number
+  fingerprintScore: number
+  embeddingScore: number | null
+  status: "PENDING" | "CONFIRMED" | "DISMISSED"
+  detectedAt: string
+  matchedLinesA: number[]
+  matchedLinesB: number[]
+  codeA: string
+  languageA: string
+  codeB: string
+  languageB: string
+}
+
+export interface PlagiarismScanJob {
+  jobId?: string
+  status: "PENDING" | "COMPLETED" | "FAILED"
+  progress?: { done: number; total: number; reportsCreated: number } | null
+  reportsCreated?: number
+  problemsScanned?: number
+  comparisons?: number
+  error?: string
+  note?: string
+}
+
 export interface AdminContestProblem {
   id: string
   problemId: string
@@ -1198,6 +1259,41 @@ export const adminApi = {
   rejudgeSubmission(submissionId: string) {
     return request<{ id: string; status: string }>(`/dashboard/submissions/${submissionId}/rejudge`, {
       method: "POST",
+    })
+  },
+
+  // ---- Plagiarism (contest-wise, staff-triggered on-demand scans) ----
+
+  plagiarismContests() {
+    return request<{ contests: PlagiarismContestSummary[] }>("/dashboard/plagiarism/contests")
+  },
+
+  scanContestPlagiarism(contestId: string) {
+    return request<{ jobId: string; status: string }>("/dashboard/plagiarism/scan", {
+      method: "POST",
+      body: { contestId },
+    })
+  },
+
+  pollPlagiarismScan(jobId: string) {
+    return request<PlagiarismScanJob>(`/dashboard/plagiarism/scan/${jobId}`)
+  },
+
+  plagiarismReports(contestId: string, params: { status?: string; search?: string } = {}) {
+    return request<{ reports: PlagiarismReportRow[] }>(
+      `/dashboard/plagiarism/contests/${contestId}/reports`,
+      { query: params }
+    )
+  },
+
+  plagiarismReport(reportId: string) {
+    return request<PlagiarismReportDetail>(`/dashboard/plagiarism/reports/${reportId}`)
+  },
+
+  resolvePlagiarism(reportId: string, status: "CONFIRMED" | "DISMISSED" | "PENDING") {
+    return request<{ id: string; status: string }>(`/dashboard/plagiarism/reports/${reportId}`, {
+      method: "PATCH",
+      body: { status },
     })
   },
 }
