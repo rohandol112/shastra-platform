@@ -52,6 +52,32 @@ export default function ContestLandingPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug, hydrated, token])
 
+  // A registered user should drop straight into the arena the moment the
+  // contest is live — no need to leave this page and come back. Users who
+  // already finished stay here (so they aren't looped back into the arena).
+  useEffect(() => {
+    if (!contest || !token || !contest.isRegistered || contest.isFinished) return
+    const live =
+      contest.status === "RUNNING" &&
+      new Date(contest.startTime).getTime() <= Date.now() &&
+      new Date(contest.endTime).getTime() > Date.now()
+    if (live) router.replace(`/contests/${contest.slug}/arena`)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contest, token])
+
+  // No polling: a registered user waiting for the start gets exactly ONE
+  // refetch, fired by a single timer at the start time. That refresh picks up
+  // the now-live contest and the effect above auto-enters the arena.
+  useEffect(() => {
+    if (!contest || !token || !contest.isRegistered) return
+    const startMs = new Date(contest.startTime).getTime()
+    const msToStart = startMs - Date.now()
+    if (msToStart <= 0 || msToStart > 2_147_483_000) return
+    const startTimer = setTimeout(() => fetchContest(slug), msToStart + 500)
+    return () => clearTimeout(startTimer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contest, token, slug])
+
   if (!hydrated || detailLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
