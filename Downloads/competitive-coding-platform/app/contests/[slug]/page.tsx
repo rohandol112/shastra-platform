@@ -291,6 +291,11 @@ export default function ContestLandingPage() {
             <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
               <ListChecks className="h-5 w-5 text-primary" />
               Problems
+              {isEnded && (
+                <span className="ml-1 text-sm font-normal text-muted-foreground">
+                  — practice these anytime; upsolve submissions don't affect the standings
+                </span>
+              )}
             </h2>
             {contest.problems && contest.problems.length > 0 ? (
               <div className="space-y-2">
@@ -313,18 +318,27 @@ export default function ContestLandingPage() {
                           <Badge variant="secondary" className="bg-background/50">
                             {p.points} pts
                           </Badge>
+                          {isEnded && <span className="text-xs text-primary">Upsolve →</span>}
                         </div>
                       </div>
                     )
-                    // During a live contest the problems are solvable; link into
-                    // the arena. Otherwise (ended review) they're just listed.
-                    return isRunning ? (
-                      <Link key={p.problemId} href={`/contests/${contest.slug}/arena`}>
-                        {row}
-                      </Link>
-                    ) : (
-                      <div key={p.problemId}>{row}</div>
-                    )
+                    // Live → into the arena. Ended → the practice page for
+                    // upsolving (marks don't count). Upcoming → not clickable.
+                    if (isRunning) {
+                      return (
+                        <Link key={p.problemId} href={`/contests/${contest.slug}/arena`}>
+                          {row}
+                        </Link>
+                      )
+                    }
+                    if (isEnded) {
+                      return (
+                        <Link key={p.problemId} href={`/problems/${p.slug}`}>
+                          {row}
+                        </Link>
+                      )
+                    }
+                    return <div key={p.problemId}>{row}</div>
                   })}
               </div>
             ) : (

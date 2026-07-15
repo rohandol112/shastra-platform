@@ -102,6 +102,74 @@ export interface BulkImportResult {
   loginHint: string
 }
 
+// ---------- Plagiarism ----------
+
+export interface PlagiarismContestSummary {
+  id: string
+  title: string
+  slug: string
+  status: ContestStatus
+  startTime: string
+  endTime: string
+  reportCount: number
+  pendingCount: number
+  confirmedCount: number
+  lastDetectedAt: string | null
+}
+
+export interface PlagiarismReportRow {
+  id: string
+  similarity: number
+  fingerprintScore: number
+  embeddingScore: number | null
+  status: "PENDING" | "CONFIRMED" | "DISMISSED"
+  detectedAt: string
+  problemId: string
+  problemTitle: string
+  userAId: string
+  userA: string
+  userBId: string
+  userB: string
+  matchedLines: number
+}
+
+export interface PlagiarismReportDetail {
+  id: string
+  problemId: string
+  problemTitle: string
+  problemSlug: string
+  contestId: string
+  userAId: string
+  userA: string
+  userBId: string
+  userB: string
+  submissionAId: string
+  submissionBId: string
+  similarity: number
+  fingerprintScore: number
+  embeddingScore: number | null
+  matchedLinesA: number[]
+  matchedLinesB: number[]
+  codeA: string
+  codeB: string
+  languageA: string
+  languageB: string
+  status: "PENDING" | "CONFIRMED" | "DISMISSED"
+  detectedAt: string
+  reviewedBy: string | null
+  reviewedAt: string | null
+}
+
+export interface PlagiarismScanJob {
+  jobId?: string
+  status: "PENDING" | "COMPLETED" | "FAILED"
+  progress?: { done: number; total: number; reportsCreated?: number } | null
+  reportsCreated?: number
+  problemsScanned?: number
+  comparisons?: number
+  error?: string
+}
+
 export interface ProblemListItem {
   id: string
   title: string
@@ -393,67 +461,6 @@ export interface ImportResult {
   skipped: number
   problems: { id: string; title: string; slug: string; testCases: number }[]
   errors: { title: string; reason: string }[]
-}
-
-export interface PlagiarismContestSummary {
-  id: string
-  title: string
-  slug: string
-  status: ContestStatus
-  startTime: string
-  endTime: string
-  reportCount: number
-  pendingCount: number
-  confirmedCount: number
-  lastDetectedAt: string | null
-}
-
-export interface PlagiarismReportRow {
-  id: string
-  similarity: number
-  fingerprintScore: number
-  embeddingScore: number | null
-  status: "PENDING" | "CONFIRMED" | "DISMISSED"
-  detectedAt: string
-  problemId: string
-  problemTitle: string
-  userAId: string
-  userA: string
-  userBId: string
-  userB: string
-  matchedLines: number
-}
-
-export interface PlagiarismReportDetail {
-  id: string
-  problemId: string
-  problemTitle: string
-  problemSlug: string
-  contestId: string | null
-  userA: string
-  userB: string
-  similarity: number
-  fingerprintScore: number
-  embeddingScore: number | null
-  status: "PENDING" | "CONFIRMED" | "DISMISSED"
-  detectedAt: string
-  matchedLinesA: number[]
-  matchedLinesB: number[]
-  codeA: string
-  languageA: string
-  codeB: string
-  languageB: string
-}
-
-export interface PlagiarismScanJob {
-  jobId?: string
-  status: "PENDING" | "COMPLETED" | "FAILED"
-  progress?: { done: number; total: number; reportsCreated: number } | null
-  reportsCreated?: number
-  problemsScanned?: number
-  comparisons?: number
-  error?: string
-  note?: string
 }
 
 export interface AdminContestProblem {

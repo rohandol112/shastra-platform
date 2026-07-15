@@ -8,26 +8,38 @@ import { Play, Send, RotateCcw, Loader2, Terminal, ChevronUp, ChevronDown } from
 import { LANGUAGES } from "@/lib/stores/workspace-store"
 import { cn } from "@/lib/utils"
 
-import Prism from "prismjs"
-import "prismjs/components/prism-c"
-import "prismjs/components/prism-cpp"
-import "prismjs/components/prism-java"
-import "prismjs/components/prism-python"
-import "prismjs/components/prism-javascript"
-import "prismjs/components/prism-typescript"
-import "prismjs/components/prism-go"
-import "prismjs/components/prism-rust"
+import CodeMirror from "@uiw/react-codemirror"
+import { EditorView, keymap } from "@codemirror/view"
+import { oneDark } from "@codemirror/theme-one-dark"
+import { python } from "@codemirror/lang-python"
+import { cpp } from "@codemirror/lang-cpp"
+import { java } from "@codemirror/lang-java"
+import { javascript } from "@codemirror/lang-javascript"
+import { go } from "@codemirror/lang-go"
+import { rust } from "@codemirror/lang-rust"
 
-// Map our language keys to Prism grammar names.
-const PRISM_LANG: Record<string, string> = {
-  c: "c",
-  cpp: "cpp",
-  java: "java",
-  python: "python",
-  javascript: "javascript",
-  typescript: "typescript",
-  go: "go",
-  rust: "rust",
+// Language-aware editing engine per language: proper autocomplete, bracket
+// closing, and indentation rules all come from these CodeMirror language packs.
+function languageExtension(language: string) {
+  switch (language) {
+    case "python":
+      return python()
+    case "cpp":
+    case "c":
+      return cpp()
+    case "java":
+      return java()
+    case "javascript":
+      return javascript()
+    case "typescript":
+      return javascript({ typescript: true })
+    case "go":
+      return go()
+    case "rust":
+      return rust()
+    default:
+      return []
+  }
 }
 
 interface CodeEditorProps {
@@ -57,95 +69,46 @@ export function CodeEditor({
   const [fontSize, setFontSize] = useState(14)
   const [customOpen, setCustomOpen] = useState(false)
   const [customInput, setCustomInput] = useState("")
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const highlightRef = useRef<HTMLPreElement>(null)
 
   const lineCount = code.split("\n").length
   const currentLang = LANGUAGES.find((l) => l.value === language)
   const busy = isRunning || isSubmitting
 
-  // Highlighted HTML for the overlay. A trailing newline keeps the last line
-  // aligned with the textarea when the caret sits on an empty final line.
-  const highlighted = useMemo(() => {
-    const grammarName = PRISM_LANG[language] ?? "clike"
-    const grammar = Prism.languages[grammarName] ?? Prism.languages.clike
-    return Prism.highlight(code + "\n", grammar, grammarName)
-  }, [code, language])
-
   const runWithInput = () => {
     onRun(customOpen && customInput.trim() !== "" ? customInput : undefined)
   }
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    // Ctrl/Cmd + Enter → run
-    if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-      e.preventDefault()
-      if (!busy) runWithInput()
-      return
-    }
-
-    // Tab → insert 4 spaces instead of leaving the editor
-    if (e.key === "Tab") {
-      e.preventDefault()
-      const target = e.currentTarget
-      const start = target.selectionStart
-      const end = target.selectionEnd
-      const next = code.substring(0, start) + "    " + code.substring(end)
-      onCodeChange(next)
-      requestAnimationFrame(() => {
-        target.selectionStart = target.selectionEnd = start + 4
-      })
-    }
+  // The Ctrl/Cmd+Enter keymap lives inside CodeMirror; a ref keeps it pointed at
+  // the latest run handler without reconfiguring the editor on every keystroke.
+  const runRef = useRef<() => void>(() => {})
+  runRef.current = () => {
+    if (!busy) runWithInput()
   }
 
-  // Keep the highlight layer scrolled in lockstep with the textarea.
-  const syncScroll = () => {
-    if (textareaRef.current && highlightRef.current) {
-      highlightRef.current.scrollTop = textareaRef.current.scrollTop
-      highlightRef.current.scrollLeft = textareaRef.current.scrollLeft
-    }
-  }
-
-  const editorFont: React.CSSProperties = {
-    fontSize: `${fontSize}px`,
-    lineHeight: "1.7",
-    fontFamily: "var(--font-jetbrains), ui-monospace, monospace",
-    tabSize: 4,
-  }
+  const extensions = useMemo(
+    () => [
+      languageExtension(language),
+      EditorView.theme({
+        "&": { fontSize: `${fontSize}px`, height: "100%" },
+        ".cm-scroller": { fontFamily: "var(--font-jetbrains), ui-monospace, monospace" },
+        ".cm-content": { fontFamily: "var(--font-jetbrains), ui-monospace, monospace" },
+      }),
+      keymap.of([
+        {
+          key: "Mod-Enter",
+          preventDefault: true,
+          run: () => {
+            runRef.current()
+            return true
+          },
+        },
+      ]),
+    ],
+    [language, fontSize],
+  )
 
   return (
     <div className="flex h-full flex-col bg-background">
-      {/* Prism token colors (dark, matches the editor background) */}
-      <style jsx global>{`
-        .code-highlight .token.comment,
-        .code-highlight .token.prolog,
-        .code-highlight .token.doctype,
-        .code-highlight .token.cdata { color: #6a737d; }
-        .code-highlight .token.punctuation { color: #c9d1d9; }
-        .code-highlight .token.property,
-        .code-highlight .token.tag,
-        .code-highlight .token.boolean,
-        .code-highlight .token.number,
-        .code-highlight .token.constant,
-        .code-highlight .token.symbol { color: #79c0ff; }
-        .code-highlight .token.selector,
-        .code-highlight .token.attr-name,
-        .code-highlight .token.string,
-        .code-highlight .token.char,
-        .code-highlight .token.builtin { color: #a5d6ff; }
-        .code-highlight .token.operator,
-        .code-highlight .token.entity,
-        .code-highlight .token.url { color: #d2a8ff; }
-        .code-highlight .token.atrule,
-        .code-highlight .token.attr-value,
-        .code-highlight .token.keyword { color: #ff7b72; }
-        .code-highlight .token.function,
-        .code-highlight .token.class-name { color: #d2a8ff; }
-        .code-highlight .token.regex,
-        .code-highlight .token.important,
-        .code-highlight .token.variable { color: #ffa657; }
-      `}</style>
-
       {/* Toolbar */}
       <div className="flex items-center justify-between border-b border-border/50 bg-card/50 px-2 py-2 sm:px-4">
         <div className="flex items-center gap-3">
@@ -197,44 +160,27 @@ export function CodeEditor({
         </div>
       </div>
 
-      {/* Editor Area — highlighted pre behind a transparent textarea */}
-      <div className="flex-1 overflow-hidden">
-        <div className="flex h-full">
-          {/* Line Numbers */}
-          <div
-            className="hidden flex-shrink-0 select-none overflow-hidden border-r border-border/30 bg-card/30 px-3 py-4 text-right text-muted-foreground/50 sm:block"
-            style={editorFont}
-          >
-            {Array.from({ length: lineCount }, (_, i) => (
-              <div key={i + 1}>{i + 1}</div>
-            ))}
-          </div>
-
-          <div className="relative flex-1 overflow-hidden">
-            <pre
-              ref={highlightRef}
-              aria-hidden
-              className="code-highlight pointer-events-none absolute inset-0 m-0 overflow-hidden whitespace-pre p-4 text-foreground"
-              style={editorFont}
-              dangerouslySetInnerHTML={{ __html: highlighted }}
-            />
-            <textarea
-              ref={textareaRef}
-              value={code}
-              onChange={(e) => onCodeChange(e.target.value)}
-              onKeyDown={handleKeyDown}
-              onScroll={syncScroll}
-              className="absolute inset-0 resize-none overflow-auto whitespace-pre border-0 bg-transparent p-4 text-transparent caret-white outline-none focus:ring-0"
-              style={editorFont}
-              spellCheck={false}
-              autoCapitalize="off"
-              autoComplete="off"
-              autoCorrect="off"
-              wrap="off"
-              aria-label="Code editor"
-            />
-          </div>
-        </div>
+      {/* Editor */}
+      <div className="flex-1 overflow-hidden [&_.cm-editor]:h-full [&_.cm-editor.cm-focused]:outline-none [&_.cm-gutters]:border-r [&_.cm-gutters]:border-border/30">
+        <CodeMirror
+          value={code}
+          onChange={onCodeChange}
+          extensions={extensions}
+          theme={oneDark}
+          height="100%"
+          basicSetup={{
+            lineNumbers: true,
+            foldGutter: false,
+            autocompletion: true,
+            closeBrackets: true,
+            bracketMatching: true,
+            indentOnInput: true,
+            highlightActiveLine: true,
+            highlightActiveLineGutter: true,
+            tabSize: 4,
+          }}
+          className="h-full text-sm"
+        />
       </div>
 
       {/* Custom input (custom test case) */}

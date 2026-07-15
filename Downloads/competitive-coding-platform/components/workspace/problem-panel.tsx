@@ -8,7 +8,7 @@ import { DifficultyBadge } from "@/components/ui/difficulty-badge"
 import { Copy, Check, Lock, Lightbulb, FileText, History, Sparkles, Clock, HardDrive } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { formatRuntime, formatMemory, type ProblemDetail, type SubmissionSummary } from "@/lib/api"
-import DOMPurify from "dompurify"
+import { Markdown } from "@/components/ui/markdown"
 
 interface ProblemPanelProps {
   problem: ProblemDetail
@@ -35,9 +35,6 @@ export function ProblemPanel({ problem, submissions, submissionsLoading, isLogge
     .split("\n")
     .map((h) => h.trim())
     .filter(Boolean)
-
-  const rawConstraints = problem.constraints ?? ""
-  const sanitizedConstraints = DOMPurify.sanitize(rawConstraints)
 
   return (
     <div className="flex h-full flex-col overflow-hidden bg-background">
@@ -112,28 +109,19 @@ export function ProblemPanel({ problem, submissions, submissionsLoading, isLogge
             </div>
 
             {/* Statement */}
-            <div className="prose prose-invert max-w-none">
-              <div 
-                className="whitespace-pre-wrap leading-relaxed text-foreground/90"
-                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(problem.statement) }}
-              />
-            </div>
+            <Markdown content={problem.statement} className="text-base" />
 
             {/* Input / Output format */}
             {problem.inputFormat && (
               <div className="mt-6">
                 <h3 className="mb-2 text-base font-semibold text-foreground">Input Format</h3>
-                <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
-                  {problem.inputFormat}
-                </p>
+                <Markdown content={problem.inputFormat} className="text-muted-foreground" />
               </div>
             )}
             {problem.outputFormat && (
               <div className="mt-4">
                 <h3 className="mb-2 text-base font-semibold text-foreground">Output Format</h3>
-                <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
-                  {problem.outputFormat}
-                </p>
+                <Markdown content={problem.outputFormat} className="text-muted-foreground" />
               </div>
             )}
 
@@ -172,7 +160,7 @@ export function ProblemPanel({ problem, submissions, submissionsLoading, isLogge
             )}
 
             {/* Constraints */}
-            {sanitizedConstraints && (
+            {problem.constraints && (
               <div className="mt-8">
                 <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
                   <span className="flex h-6 w-6 items-center justify-center rounded bg-red-500/20 text-xs text-red-400">
@@ -180,10 +168,7 @@ export function ProblemPanel({ problem, submissions, submissionsLoading, isLogge
                   </span>
                   Constraints
                 </h3>
-                <div 
-                  className="prose prose-invert text-muted-foreground prose-li:my-1"
-                  dangerouslySetInnerHTML={{ __html: sanitizedConstraints }}
-                />
+                <Markdown content={problem.constraints} className="text-muted-foreground" />
               </div>
             )}
           </div>
